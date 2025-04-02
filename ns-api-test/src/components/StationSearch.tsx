@@ -62,7 +62,7 @@ export default function StationSearch() {
   };
 
   return (
-    <div ref={searchContainerRef} className="relative w-full max-w-md mx-auto mb-6">
+    <div ref={searchContainerRef} className="relative w-full max-w-md mx-auto"> {/* Removed mb-6 */}
       <input
         type="text"
         placeholder="Search for a station..."

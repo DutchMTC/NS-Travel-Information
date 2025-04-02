@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Journey, TrainUnit } from '../lib/ns-api'; // Remove API function imports
+import { Journey, TrainUnit, Disruption } from '../lib/ns-api'; // Import Disruption type
 import JourneyList from './DepartureList'; // Component file is still DepartureList.tsx
 import { JourneyTypeSwitch } from './JourneyTypeSwitch';
 
@@ -20,6 +20,11 @@ interface StationJourneyDisplayProps {
   stationName: string; // Pass station name for messages
 }
 
+// Type for the API response from our internal route
+interface ApiResponse {
+  journeys: JourneyWithDetails[];
+  disruptions: Disruption[];
+}
 export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   // initialJourneys removed from props
   stationCode,
@@ -27,14 +32,16 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
 }) => {
   const [journeyType, setJourneyType] = useState<JourneyType>('departures');
   const [journeys, setJourneys] = useState<JourneyWithDetails[]>([]); // Initialize as empty, fetched in useEffect
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start loading initially
   const [error, setError] = useState<string | null>(null);
+  const [disruptions, setDisruptions] = useState<Disruption[]>([]); // State for disruptions
 
   // Fetch data from the internal API route
   const fetchAndSetJourneys = useCallback(async (type: JourneyType) => {
     setIsLoading(true);
     setError(null);
     setJourneys([]); // Clear previous journeys
+    setDisruptions([]); // Clear previous disruptions
 
     try {
       const response = await fetch(`/api/journeys/${stationCode}?type=${type}`);
@@ -53,8 +60,9 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         throw new Error(errorMsg);
       }
 
-      const data: JourneyWithDetails[] = await response.json(); // Expect updated type from API
-      setJourneys(data);
+      const data: ApiResponse = await response.json(); // Expect updated type from API
+      setJourneys(data.journeys);
+      setDisruptions(data.disruptions); // Set disruptions state
 
     } catch (err) {
       console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
@@ -65,22 +73,18 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         setError(`An unknown client-side error occurred while fetching ${type} data.`);
       }
       setJourneys([]); // Clear journeys on error
+      setDisruptions([]); // Clear disruptions on error
     } finally {
       setIsLoading(false);
     }
   }, [stationCode]); // Dependency on stationCode
 
-  // Effect to fetch data when journeyType changes
+  // Effect to fetch data on initial load and when journeyType changes
   useEffect(() => {
-    // Fetch data whenever journeyType changes
-    // The initial state is set via props, so this effect
-    // will run for the first switch *away* from departures,
-    // and then for every subsequent switch.
     fetchAndSetJourneys(journeyType);
      // Update document title (optional)
      document.title = `${journeyType.charAt(0).toUpperCase() + journeyType.slice(1)} - ${stationName}`;
-
-  }, [journeyType, fetchAndSetJourneys, stationName]);
+  }, [journeyType, fetchAndSetJourneys, stationName]); // fetchAndSetJourneys is stable due to useCallback
 
   const handleTypeChange = (newType: JourneyType) => {
     setJourneyType(newType);
@@ -97,6 +101,25 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       {isLoading && (
         <p className="text-center text-gray-600 dark:text-gray-400 mt-4">Loading {journeyType}...</p>
       )}
+
+     {/* Disruptions Section */}
+     {!isLoading && !error && disruptions.length > 0 && (
+       <div className="my-4 p-4 bg-red-100 border border-red-300 text-red-800 rounded-md dark:bg-red-900/30 dark:border-red-700/50 dark:text-red-300">
+         <h3 className="font-bold text-lg mb-2 flex items-center">
+           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
+             <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 3.001-1.742 3.001H4.42c-1.53 0-2.493-1.667-1.743-3.001l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1.75-5.75a.75.75 0 00-1.5 0v3a.75.75 0 001.5 0v-3z" clipRule="evenodd" />
+           </svg>
+           Active Disruptions
+         </h3>
+         <ul>
+           {disruptions.map((disruption) => (
+             <li key={disruption.id} className="mb-1">
+               <strong className="font-semibold">{disruption.title}:</strong> {disruption.topic}
+             </li>
+           ))}
+         </ul>
+       </div>
+     )}
 
       {/* Error State */}
       {error && !isLoading && (

@@ -120,6 +120,16 @@ interface JourneyDetailsResponse {
     payload: JourneyDetailsPayload;
 }
 
+// --- Interfaces for Disruptions API (/disruptions/station) ---
+export interface Disruption {
+  id: string;
+  type: "CALAMITY" | "DISRUPTION" | "MAINTENANCE"; // Add other known types if applicable
+  isActive: boolean;
+  title: string;
+  topic: string; // This often contains the affected line or area
+  // Add other potential fields like 'period', 'description' if needed
+}
+
 // Shared function to fetch journeys (departures or arrivals)
 async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals'): Promise<Journey[]> {
     const apiKey = process.env.NSR_API_KEY;
@@ -341,5 +351,52 @@ export async function getJourneyDestination(trainNumber: string): Promise<string
     } catch (error) {
         console.error(`An error occurred while fetching journey details for train ${trainNumber}:`, error);
         return null; // Return null on error
+    }
+}
+
+// --- Function to fetch Station Disruptions ---
+export async function getStationDisruptions(stationCode: string): Promise<Disruption[]> {
+    const apiKey = process.env.NSR_API_KEY;
+
+    if (!apiKey) {
+        console.error("Error: NSR_API_KEY environment variable is not set for getStationDisruptions.");
+        // Depending on requirements, might return empty array or throw
+        return []; // Return empty array if API key is missing
+    }
+
+    // Use the V3 endpoint for disruptions
+    const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v3/disruptions/station/${stationCode}`;
+
+    try {
+        console.log(`[DEBUG] Fetching Disruptions URL: ${apiUrl}`);
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Ocp-Apim-Subscription-Key': apiKey,
+                'Accept': 'application/json',
+            },
+            cache: 'no-store', // Or appropriate caching
+        });
+
+        if (!response.ok) {
+            // Handle errors, e.g., 404 if no disruptions or other API issues
+            if (response.status === 404) {
+                 console.log(`No disruptions found for station ${stationCode} (Status 404)`);
+                 return []; // No disruptions is not an error
+            }
+            const errorBody = await response.text();
+            console.error(`Error fetching disruptions for station ${stationCode}: ${response.status} ${response.statusText}`, errorBody);
+            return []; // Return empty array on error
+        }
+
+        const data: Disruption[] = await response.json();
+
+        // Filter for active disruptions if needed, though the API might already do this
+        // return data.filter(d => d.isActive);
+        return data; // Return all disruptions fetched
+
+    } catch (error) {
+        console.error(`An error occurred while fetching disruptions for station ${stationCode}:`, error);
+        return []; // Return empty array on error
     }
 }

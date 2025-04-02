@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getDepartures, getArrivals, getTrainComposition, getJourneyDestination, Journey, TrainUnit } from '../../../../lib/ns-api'; // Add getJourneyDestination
+import { getDepartures, getArrivals, getTrainComposition, getJourneyDestination, getStationDisruptions, Journey, TrainUnit, Disruption } from '../../../../lib/ns-api'; // Add getStationDisruptions, Disruption
 
 // Edge runtime removed to use standard serverless environment
 
@@ -27,11 +27,24 @@ export async function GET(
   if (type !== 'departures' && type !== 'arrivals') {
     return NextResponse.json({ error: 'Invalid type parameter. Use "departures" or "arrivals".' }, { status: 400 });
   }
-
+  
+  // New response type including disruptions
+  interface ApiResponse {
+    journeys: JourneyWithDetails[];
+    disruptions: Disruption[];
+  }
   try {
     // Fetch base journeys (departures or arrivals)
     const fetchFunction = type === 'departures' ? getDepartures : getArrivals;
-    const baseJourneys = await fetchFunction(stationCode.toUpperCase());
+    // Fetch base journeys and disruptions in parallel
+    const stationCodeUpper = stationCode.toUpperCase();
+    const fetchJourneysPromise = fetchFunction(stationCodeUpper);
+    const fetchDisruptionsPromise = getStationDisruptions(stationCodeUpper);
+
+    const [baseJourneys, disruptions] = await Promise.all([
+        fetchJourneysPromise,
+        fetchDisruptionsPromise
+    ]);
 
     let journeysWithDetails: JourneyWithDetails[] = [];
 
@@ -81,7 +94,18 @@ export async function GET(
       });
     }
 
-    return NextResponse.json(journeysWithDetails);
+    // Filter for active disruptions (optional, API might already do this)
+    let activeDisruptions = disruptions.filter(d => d.isActive);
+
+    // Fake disruptions removed.
+
+
+    const responsePayload: ApiResponse = {
+        journeys: journeysWithDetails,
+        disruptions: activeDisruptions // Includes the fake one now
+    };
+
+    return NextResponse.json(responsePayload);
 
   } catch (error) {
     console.error(`API Route Error fetching ${type} for ${stationCode}:`, error);
@@ -91,6 +115,8 @@ export async function GET(
         ? "Server configuration error." // Generic message for client
         : `Failed to fetch ${type} data.`;
 
-    return NextResponse.json({ error: clientErrorMessage }, { status: 500 });
+    // Ensure error response structure matches expected client handling if necessary
+    // For now, just return the error message
+    return NextResponse.json({ error: clientErrorMessage, journeys: [], disruptions: [] }, { status: 500 });
   }
 }

@@ -10,6 +10,10 @@ export default function Home() {
         </h1>
         {/* StationSearch removed, now in layout */}
 
+        <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
+          Use the search bar above to find departures and arrivals for a specific station.
+        </p>
+
         {/* Content previously showing departures is removed. */}
         {/* The StationSearch component handles navigation. */}
       </main>
