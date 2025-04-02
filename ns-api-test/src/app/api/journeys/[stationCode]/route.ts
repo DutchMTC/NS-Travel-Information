@@ -95,7 +95,7 @@ export async function GET(
     }
 
     // Filter for active disruptions (optional, API might already do this)
-    let activeDisruptions = disruptions.filter(d => d.isActive);
+    const activeDisruptions = disruptions.filter(d => d.isActive); // Changed let to const
 
     // Fake disruptions removed.
 

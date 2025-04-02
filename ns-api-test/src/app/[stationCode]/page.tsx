@@ -15,8 +15,8 @@ interface StationPageProps {
 
 // --- Dynamic Metadata Generation ---
 export async function generateMetadata(
-  { params }: StationPageProps,
-  parent: ResolvingMetadata // Access metadata from parent layout
+  { params }: StationPageProps
+  // parent: ResolvingMetadata // Removed unused parent parameter
 ): Promise<Metadata> {
   const stationCode = params.stationCode.toUpperCase(); // Access directly, no promise
   const station = stations.find(s => s.code.toUpperCase() === stationCode);
