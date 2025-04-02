@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+// import { motion } from 'framer-motion'; // Removed motion import
 import { Geist, Geist_Mono } from "next/font/google"; // Corrected font import name
-import StationSearch from "../components/StationSearch"; // Import the search component
+// import StationSearch from "../components/StationSearch"; // Moved to AnimatedHeader
 import { ThemeProvider } from "../components/ThemeProvider"; // Import ThemeProvider
-import { ThemeToggleButton } from "../components/ThemeToggleButton"; // Import ThemeToggleButton
+// import { ThemeToggleButton } from "../components/ThemeToggleButton"; // Moved to AnimatedHeader
+import { AnimatedHeader } from "../components/AnimatedHeader"; // Import the new header component
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,12 +63,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`} // Added bg-gray-50 for consistency
       >
         <ThemeProvider>
-          <header className="p-4 bg-white shadow-md sticky top-0 z-20 dark:bg-gray-800"> {/* Added dark mode bg */}
-            <div className="max-w-4xl mx-auto flex justify-between items-center"> {/* Container for layout */}
-              <StationSearch />
-              <ThemeToggleButton />
-            </div>
-          </header>
+          {/* Use the new AnimatedHeader client component */}
+          <AnimatedHeader />
+          {/* Removed extra closing header tag */}
           <main>{children}</main> {/* Wrap children in main */}
         </ThemeProvider>
       </body>

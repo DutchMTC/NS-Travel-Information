@@ -121,13 +121,31 @@ interface JourneyDetailsResponse {
 }
 
 // --- Interfaces for Disruptions API (/disruptions/station) ---
+interface Situation {
+  label?: string; // Make optional as it might not always be present
+  // Add other fields if known from API response
+}
+
+interface SummaryAdditionalTravelTime {
+  label?: string; // Make optional
+  // Add other fields if known
+}
+
+interface Timespan {
+  period?: string; // Make optional
+  // Add other fields like start/end dates if known
+}
+
 export interface Disruption {
   id: string;
-  type: "CALAMITY" | "DISRUPTION" | "MAINTENANCE"; // Add other known types if applicable
+  type: "CALAMITY" | "DISRUPTION" | "MAINTENANCE";
   isActive: boolean;
   title: string;
-  topic: string; // This often contains the affected line or area
-  // Add other potential fields like 'period', 'description' if needed
+  topic?: string; // Make optional as it might not always be present
+  situation?: Situation; // Add nested situation object
+  summaryAdditionalTravelTime?: SummaryAdditionalTravelTime; // Add nested travel time object
+  timespans?: Timespan[]; // Add array of timespans
+  // Add other potential fields like 'description', 'publicationSections' if needed
 }
 
 // Shared function to fetch journeys (departures or arrivals)
@@ -390,6 +408,7 @@ export async function getStationDisruptions(stationCode: string): Promise<Disrup
         }
 
         const data: Disruption[] = await response.json();
+        console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Log raw data
 
         // Filter for active disruptions if needed, though the API might already do this
         // return data.filter(d => d.isActive);

@@ -81,22 +81,23 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
               {/* Left Column: Time/Delay + Destination/Type */}
               <div className="flex-grow mr-4">
                 {/* Time + Delay */}
-                <div className="flex items-center mb-1">
-                  {/* Show actual time in red box FIRST if delayed and NOT cancelled */}
+                <div className="flex items-center flex-wrap mb-1"> {/* Added flex-wrap */}
+                  {/* Planned Time (strikethrough if cancelled OR delayed) */}
+                  <span className={`text-lg font-semibold ${ (journey.cancelled || delayMinutes > 0) ? 'line-through' : '' } ${ journey.cancelled ? 'text-red-600 dark:text-red-400' : 'text-blue-800 dark:text-blue-300' } mr-2`}>
+                    {plannedTimeFormatted}
+                  </span>
+
+                  {/* Actual Time (only if delayed and not cancelled) */}
                   {delayMinutes > 0 && !journey.cancelled && (
-                    <span className="mr-2 px-2 py-0.5 bg-red-600 text-white text-sm font-semibold rounded">
+                    <span className="text-lg font-semibold text-red-600 dark:text-red-400 mr-2">
                       {actualTimeFormatted}
                     </span>
                   )}
-                  {/* Planned Time (color depends on cancelled/delay) */}
-                  {/* Add margin-right only if something follows it */}
-                  <span className={`text-lg font-semibold ${ (delayMinutes > 0 || journey.cancelled) ? 'mr-2' : '' } ${journey.cancelled ? 'text-red-600 dark:text-red-400' : (delayMinutes > 0 ? 'text-red-600 dark:text-red-400' : 'text-blue-800 dark:text-blue-300')}`}>
-                    {plannedTimeFormatted}
-                  </span>
-                  {/* Show +X min if delayed */}
-                  {delayMinutes > 0 && (
+
+                  {/* Delay amount (only if delayed and not cancelled) */}
+                  {delayMinutes > 0 && !journey.cancelled && (
                      <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                       +{delayMinutes} min
+                       (+{delayMinutes} min)
                      </span>
                   )}
                   {/* Show Cancelled box if cancelled */}
