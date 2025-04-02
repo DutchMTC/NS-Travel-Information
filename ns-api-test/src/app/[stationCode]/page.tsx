@@ -6,10 +6,10 @@ import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; 
 
 
 // Define props for the dynamic page component
+// Define props matching Next.js App Router structure for dynamic routes
 interface StationPageProps {
-  params: {
-    stationCode: string; // This comes from the folder name [stationCode]
-  };
+  params: { stationCode: string }; // Type the specific param we expect
+  searchParams?: { [key: string]: string | string[] | undefined }; // Include optional searchParams
 }
 
 export default async function StationPage({ params }: StationPageProps) {
