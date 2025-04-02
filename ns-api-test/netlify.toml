@@ -1,0 +1,11 @@
+# Basic Netlify configuration for a Next.js project
+
+[build]
+  # Command to build your Next.js site
+  command = "npm run build"
+  # Directory where the build output is located
+  publish = ".next"
+
+# Plugin to handle Next.js features on Netlify
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
