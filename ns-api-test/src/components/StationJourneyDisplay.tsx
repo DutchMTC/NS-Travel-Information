@@ -15,18 +15,18 @@ interface JourneyWithDetails extends Journey {
 }
 
 interface StationJourneyDisplayProps {
-  initialJourneys: JourneyWithDetails[]; // Use updated type for initial props
+  // initialJourneys is no longer passed; fetched client-side
   stationCode: string;
   stationName: string; // Pass station name for messages
 }
 
 export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
-  initialJourneys,
+  // initialJourneys removed from props
   stationCode,
   stationName,
 }) => {
   const [journeyType, setJourneyType] = useState<JourneyType>('departures');
-  const [journeys, setJourneys] = useState<JourneyWithDetails[]>(initialJourneys); // Use updated type for state
+  const [journeys, setJourneys] = useState<JourneyWithDetails[]>([]); // Initialize as empty, fetched in useEffect
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -1,6 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getDepartures, getArrivals, getTrainComposition, getJourneyDestination, Journey, TrainUnit } from '../../../../lib/ns-api'; // Add getJourneyDestination
 
+// Force Edge runtime for Cloudflare Pages compatibility
+export const runtime = 'edge';
+
 // Combined type for response
 // Combined type for response, including composition and final destination
 interface JourneyWithDetails extends Journey {
@@ -10,9 +13,11 @@ interface JourneyWithDetails extends Journey {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { stationCode: string } }
+  context: { params: Promise<{ stationCode: string }> } // Pass context object
 ) {
-  const stationCode = params.stationCode;
+  // Extract stationCode from the URL path for broader compatibility
+  const pathnameParts = request.nextUrl.pathname.split('/');
+  const stationCode = pathnameParts[pathnameParts.length - 1];
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get('type') as 'departures' | 'arrivals' | null;
 
