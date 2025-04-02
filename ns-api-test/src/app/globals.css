@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Removed CSS variables and prefers-color-scheme for class-based dark mode */
+
+body {
+  @apply bg-white text-gray-900; /* Light mode base */
+  /* Apply fonts via layout.tsx className */
+}
+
+html.dark body { /* Target body when html has .dark class */
+  @apply bg-gray-900 text-gray-100; /* Dark mode base */
+}
