@@ -1,8 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getDepartures, getArrivals, getTrainComposition, getJourneyDestination, Journey, TrainUnit } from '../../../../lib/ns-api'; // Add getJourneyDestination
 
-// Force Edge runtime for Cloudflare Pages compatibility
-export const runtime = 'edge';
+// Edge runtime removed to use standard serverless environment
 
 // Combined type for response
 // Combined type for response, including composition and final destination
