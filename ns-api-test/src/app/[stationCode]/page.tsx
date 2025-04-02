@@ -6,7 +6,7 @@ import { stations } from '../../lib/stations'; // Import the stations list
 // Define props directly, including optional searchParams
 export default async function StationPage({
   params,
-  searchParams, // Explicitly include searchParams even if unused
+  // searchParams, // Removed unused destructuring
 }: {
   params: { stationCode: string };
   searchParams?: { [key: string]: string | string[] | undefined };
