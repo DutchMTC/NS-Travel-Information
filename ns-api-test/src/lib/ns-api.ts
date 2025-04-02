@@ -49,7 +49,21 @@ interface ArrivalsPayload {
     source: string;
     // The actual API response uses 'arrivals' containing objects that might have 'origin' but not 'direction'
     // We map this to our Journey interface in fetchJourneys
-    arrivals: any[]; // Use any[] here, mapping happens in fetchJourneys
+    // Define a basic structure for the raw arrival object before mapping
+    arrivals: {
+        product: TrainProduct;
+        plannedDateTime: string;
+        actualDateTime: string;
+        trainCategory: string;
+        cancelled: boolean;
+        routeStations: RouteStation[];
+        origin?: string;
+        plannedTrack?: string;
+        actualTrack?: string;
+        messages?: DepartureMessage[];
+        // Include other potential fields from the raw API response if known
+        [key: string]: any; // Allow other fields but prefer known ones
+    }[];
 }
 
 // Response structure for Departures
@@ -96,7 +110,7 @@ interface JourneyStop {
 }
 
 interface JourneyDetailsPayload {
-    notes: any[]; // Assuming notes can be complex
+    notes: unknown[]; // Use unknown instead of any for notes
     productNumbers: string[];
     stops: JourneyStop[];
     // Add other potential fields
@@ -139,7 +153,7 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
             let errorBody = 'Could not read error body.';
             try {
                 errorBody = await response.text();
-            } catch (e) { /* Ignore */ }
+            } catch { /* Ignore, no need for 'e' variable */ }
             console.error(`Error fetching NS ${type}: ${response.status} ${response.statusText}`, errorBody);
             throw new Error(`Failed to fetch ${type}. Status: ${response.status}. ${errorBody}`);
         }
@@ -241,7 +255,7 @@ export async function getTrainComposition(trainNumber: string): Promise<{ length
         // console.warn(`Composition data not found for train ${trainNumber} (Status 404)`);
         return null;
       }
-      let errorBody = await response.text();
+      const errorBody = await response.text(); // Use const
       console.error(`Error fetching composition for train ${trainNumber}: ${response.status} ${response.statusText}`, errorBody);
       // Depending on requirements, might return null or throw
       return null;
@@ -297,7 +311,7 @@ export async function getJourneyDestination(trainNumber: string): Promise<string
                  console.warn(`Journey details not found for train ${trainNumber} (Status 404)`);
                  return null;
             }
-            let errorBody = await response.text();
+            const errorBody = await response.text(); // Use const
             console.error(`Error fetching journey details for train ${trainNumber}: ${response.status} ${response.statusText}`, errorBody);
             return null;
         }

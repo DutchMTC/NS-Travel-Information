@@ -1,8 +1,9 @@
 "use client"; // This component needs client-side interactivity
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion'; // Removed AnimatePresence
 import { Journey, TrainUnit, DepartureMessage } from '../lib/ns-api'; // Import Journey instead of Departure
 import { FaLongArrowAltRight } from 'react-icons/fa'; // Import a different arrow icon
+import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
 
 
@@ -49,16 +50,7 @@ const itemVariants = {
   },
 };
 
-const detailsVariants = {
-    hidden: { opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' },
-    visible: {
-        opacity: 1,
-        height: 'auto',
-        marginTop: '0.5rem', // Corresponds to mt-2
-        transition: { duration: 0.3, ease: "easeInOut" }
-    }
-};
-
+// Removed unused detailsVariants
 
 export default function JourneyList({ journeys, listType }: JourneyListProps) {
   // Removed useState and handleToggle for expandedIndex
@@ -70,7 +62,7 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
       initial="hidden"
       animate="visible"
     >
-      {journeys.map((journey, index) => {
+      {journeys.map((journey) => { // Removed unused index
         // Use journey instead of dep
         const delayMinutes = calculateDelay(journey.plannedDateTime, journey.actualDateTime);
         const plannedTimeFormatted = formatTime(journey.plannedDateTime);
@@ -170,7 +162,7 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
                  {journey.composition.parts.map((part, partIndex) => (
                    <div key={part.materieelnummer || partIndex} className="mb-2"> {/* Wrapper for image + text, use materieelnummer as key */}
                      {part.afbeelding ? (
-                       <img src={part.afbeelding} alt={part.type} title={part.type} className="h-7 object-contain" />
+                       <Image src={part.afbeelding} alt={part.type} title={part.type} width={300} height={84} quality={100} unoptimized={true} className="h-7 w-auto object-contain" />
                      ) : (
                        <div className="h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs italic">(No image)</div>
                      )}

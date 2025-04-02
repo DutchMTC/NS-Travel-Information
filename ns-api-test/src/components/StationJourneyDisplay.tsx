@@ -47,8 +47,8 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
           if (errorData.error) {
             errorMsg = errorData.error;
           }
-        } catch (e) {
-          // Ignore if parsing error body fails
+        } catch {
+          // Ignore if parsing error body fails, no need for 'e' variable
         }
         throw new Error(errorMsg);
       }
