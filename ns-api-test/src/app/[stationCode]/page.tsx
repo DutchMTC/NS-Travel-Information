@@ -6,13 +6,12 @@ import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; 
 
 
 // Define props for the dynamic page component
-// Define props directly in function signature
-// Define props directly, omitting unused searchParams type
-export default async function StationPage({
-  params,
-}: {
+type PageProps = {
   params: { stationCode: string };
-}) {
+  searchParams?: { [key: string]: string | string[] | undefined }; // Optional searchParams
+};
+
+export default async function StationPage({ params }: PageProps) {
   const { stationCode } = params; // Extract station code from params
   const upperCaseStationCode = stationCode.toUpperCase(); // Use consistent casing
 
