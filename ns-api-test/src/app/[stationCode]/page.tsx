@@ -1,20 +1,61 @@
-// Removed all server-side data fetching imports (getDepartures, etc.)
+import type { Metadata, ResolvingMetadata } from 'next'; // Import Metadata types
 import { stations } from '../../lib/stations'; // Keep stations for name lookup
 import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; // Import the client wrapper
 
+// Define base URL (consistent with layout.tsx)
+const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 // Removed Edge runtime export to see if it resolves the params error
 
-// Define props for the page component
+// Define props for the page component and generateMetadata
 interface StationPageProps {
-  params: Promise<{ stationCode: string }>;
+  params: { stationCode: string }; // params is the resolved object, not a promise
   // searchParams might be needed if we pass them down later
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams?: { [key: string]: string | string[] | undefined }; // Also not a promise here
 }
 
+// --- Dynamic Metadata Generation ---
+export async function generateMetadata(
+  { params }: StationPageProps,
+  parent: ResolvingMetadata // Access metadata from parent layout
+): Promise<Metadata> {
+  const stationCode = params.stationCode.toUpperCase(); // Access directly, no promise
+  const station = stations.find(s => s.code.toUpperCase() === stationCode);
+  const stationName = station ? station.name : stationCode; // Fallback to code
+
+  // Optionally fetch data here if needed for metadata (e.g., specific image)
+  // const product = await fetch(`https://...`).then((res) => res.json())
+
+  // Get previous images (optional, if you want to keep layout images)
+  // const previousImages = (await parent).openGraph?.images || []
+
+  const title = stationName ? `${stationName} Departures & Arrivals` : 'Station Information';
+  const description = `View live train departures and arrivals for ${stationName || 'this station'} in the Netherlands.`;
+
+  return {
+    title: stationName || 'Station', // Sets the <title> tag
+    description: description,
+    openGraph: {
+      title: title,
+      description: description,
+      url: `${siteBaseUrl}/${stationCode}`, // URL specific to this station
+      // images: [`${siteBaseUrl}/specific-station-image.png`], // Optional: Add specific image if available
+      // images: [...previousImages], // Keep images from layout if desired
+    },
+    // Optional: Add Twitter specific tags if needed
+    // twitter: {
+    //   card: 'summary_large_image',
+    //   title: title,
+    //   description: description,
+    //   // images: [`${siteBaseUrl}/specific-station-image.png`],
+    // },
+  };
+}
+
+// --- Page Component ---
 // Make the page component non-async
-// Destructure stationCode directly in the signature
-export default async function StationPage(props: StationPageProps) {
-  const params = await props.params;
+// Destructure params directly in the signature
+export default function StationPage({ params }: StationPageProps) { // No need for async or props wrapper
+  // const params = await props.params; // Removed await
 
   const {
     stationCode
