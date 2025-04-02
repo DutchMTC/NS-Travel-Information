@@ -62,7 +62,7 @@ interface ArrivalsPayload {
         actualTrack?: string;
         messages?: DepartureMessage[];
         // Include other potential fields from the raw API response if known
-        [key: string]: any; // Allow other fields but prefer known ones
+        [key: string]: unknown; // Use unknown instead of any for better type safety
     }[];
 }
 
