@@ -12,8 +12,8 @@ interface JourneyWithDetails extends Journey {
 }
 
 export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ stationCode: string }> } // Pass context object
+  request: NextRequest
+  // context parameter removed as stationCode is extracted from request.nextUrl
 ) {
   // Extract stationCode from the URL path for broader compatibility
   const pathnameParts = request.nextUrl.pathname.split('/');
