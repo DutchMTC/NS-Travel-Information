@@ -8,16 +8,14 @@ const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 // Define props for the page component and generateMetadata
 interface StationPageProps {
-  params: { stationCode: string }; // params is the resolved object, not a promise
+  params: Promise<{ stationCode: string }>; // params is the resolved object, not a promise
   // searchParams might be needed if we pass them down later
-  searchParams?: { [key: string]: string | string[] | undefined }; // Also not a promise here
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>; // Also not a promise here
 }
 
 // --- Dynamic Metadata Generation ---
-export async function generateMetadata(
-  { params }: StationPageProps
-  // parent: ResolvingMetadata // Removed unused parent parameter
-): Promise<Metadata> {
+export async function generateMetadata(props: StationPageProps): Promise<Metadata> {
+  const params = await props.params;
   const stationCode = params.stationCode.toUpperCase(); // Access directly, no promise
   const station = stations.find(s => s.code.toUpperCase() === stationCode);
   const stationName = station ? station.name : stationCode; // Fallback to code
@@ -54,7 +52,9 @@ export async function generateMetadata(
 // --- Page Component ---
 // Make the page component non-async
 // Destructure params directly in the signature
-export default function StationPage({ params }: StationPageProps) { // No need for async or props wrapper
+export default async function StationPage(props: StationPageProps) {
+  const params = await props.params;
+  // No need for async or props wrapper
   // const params = await props.params; // Removed await
 
   const {
