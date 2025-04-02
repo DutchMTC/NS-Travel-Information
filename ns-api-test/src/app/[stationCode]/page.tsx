@@ -1,4 +1,4 @@
-import type { Metadata, ResolvingMetadata } from 'next'; // Import Metadata types
+import type { Metadata } from 'next'; // Import Metadata types (Removed ResolvingMetadata)
 import { stations } from '../../lib/stations'; // Keep stations for name lookup
 import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; // Import the client wrapper
 
