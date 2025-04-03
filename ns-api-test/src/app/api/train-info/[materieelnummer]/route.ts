@@ -68,13 +68,13 @@ interface Stop {
     departures: ArrivalDeparture[];
     actualStock?: StockInfo;
     plannedStock?: StockInfo;
-    platformFeatures?: any[]; // Define further if needed
-    coachCrowdForecast?: any[]; // Define further if needed
+    platformFeatures?: unknown[]; // Define further if needed
+    coachCrowdForecast?: unknown[]; // Define further if needed
 }
 
 interface JourneyStopsApiResponse {
     payload: {
-        notes?: any[]; // Define further if needed
+        notes?: unknown[]; // Define further if needed
         productNumbers?: string[];
         stops: Stop[];
         allowCrowdReporting?: boolean;
@@ -85,7 +85,7 @@ interface JourneyStopsApiResponse {
 
 
 export async function GET(
-    request: NextRequest,
+    _request: NextRequest, // Parameter is required by Next.js but not used in this function
     props: { params: Promise<{ materieelnummer: string }> }
 ) {
     const params = await props.params;
@@ -169,7 +169,7 @@ export async function GET(
                  return NextResponse.json({ error: "This train is not currently in service." }, { status: 404 });
              }
              // Handle other potential errors (e.g., 500)
-             let errorMsg = `Failed to fetch journey stops from NS API (Status: ${journeyResponse.status})`;
+             const errorMsg = `Failed to fetch journey stops from NS API (Status: ${journeyResponse.status})`;
              try {
                  const errorBodyText = await journeyResponse.text();
                  console.error(`Error fetching journey stops: ${journeyResponse.status} ${journeyResponse.statusText}`);

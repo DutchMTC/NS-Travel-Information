@@ -14,7 +14,7 @@ interface Product { number: string; categoryCode: string; shortCategoryName: str
 interface ArrivalDeparture { product: Product; origin: StationInfo; destination: StationInfo; plannedTime: string; actualTime?: string; delayInSeconds?: number; plannedTrack?: string; actualTrack?: string; cancelled: boolean; punctuality?: number; crowdForecast?: string; stockIdentifiers?: string[]; }
 interface TrainPart { stockIdentifier: string; destination?: StationInfo; facilities: string[]; image?: { uri: string }; }
 interface StockInfo { trainType: string; numberOfSeats: number; numberOfParts: number; trainParts: TrainPart[]; hasSignificantChange: boolean; }
-interface Stop { id: string; stop: StationInfo; previousStopId: string[]; nextStopId: string[]; destination?: string; status: string; arrivals: ArrivalDeparture[]; departures: ArrivalDeparture[]; actualStock?: StockInfo; plannedStock?: StockInfo; platformFeatures?: any[]; coachCrowdForecast?: any[]; }
+interface Stop { id: string; stop: StationInfo; previousStopId: string[]; nextStopId: string[]; destination?: string; status: string; arrivals: ArrivalDeparture[]; departures: ArrivalDeparture[]; actualStock?: StockInfo; plannedStock?: StockInfo; platformFeatures?: unknown[]; coachCrowdForecast?: unknown[]; }
 // --- End Types ---
 
 export default function TrainInfoSearch() {
@@ -61,9 +61,10 @@ export default function TrainInfoSearch() {
       if (fetchedStops.length === 0) {
            setError(`No stops found for the journey associated with materieelnummer ${mNum} today.`);
        }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching train info:', err);
-      setError(err.message || 'An unknown error occurred while fetching train information.');
+      const message = err instanceof Error ? err.message : 'An unknown error occurred while fetching train information.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }
