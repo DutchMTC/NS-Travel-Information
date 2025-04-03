@@ -37,7 +37,7 @@ This project is a web application built with Next.js that displays real-time tra
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/DutchMTC/NS-Travel-Information.git
     cd ns-api-test
     ```
 
