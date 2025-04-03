@@ -23,15 +23,15 @@ const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 export const metadata: Metadata = {
   metadataBase: new URL(siteBaseUrl), // Important for resolving relative image paths
   title: {
-    default: "Dutch Train Departures", // Default title for the site
-    template: "%s | Dutch Train Departures", // Template for page-specific titles
+    default: "Spoorwijzer", // Default title for the site
+    template: "%s | Spoorwijzer", // Template for page-specific titles
   },
-  description: "Check live train departures and arrivals for stations in the Netherlands.",
+  description: "Check live train departures and arrivals for stations in the Netherlands.", // Description can remain the same or be updated if desired
   openGraph: {
-    title: "Dutch Train Departures",
+    title: "Spoorwijzer",
     description: "Check live train departures and arrivals for stations in the Netherlands.",
     url: siteBaseUrl,
-    siteName: "Dutch Train Departures",
+    siteName: "Spoorwijzer",
     images: [
       {
         url: '/globe.svg', // Path relative to the public directory
@@ -50,6 +50,11 @@ export const metadata: Metadata = {
   //   description: 'Check live train departures and arrivals for stations in the Netherlands.',
   //   images: [`${siteBaseUrl}/globe.svg`], // Must be absolute URL for Twitter
   // },
+  icons: {
+      icon: '/assets/global/Spoorwijzer Favicon.svg', // Path to your SVG favicon in the public directory
+      // You can also specify other icon types like apple-touch-icon here if needed
+      // apple: '/apple-icon.png',
+  },
 };
 
 export default function RootLayout({

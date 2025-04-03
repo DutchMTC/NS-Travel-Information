@@ -168,7 +168,6 @@ export const stations: Station[] = [
   { code: 'HLM', uic: '8400285', name: 'Haarlem' },
   { code: 'HLMS', uic: '8400270', name: 'Haarlem Spaarnwoude' },
   { code: 'HWZB', uic: '8400400', name: 'Halfweg-Zwanenburg' },
-  { code: 'HDE', uic: '8400388', name: "'t Harde" },
   { code: 'HDB', uic: '8400293', name: 'Hardenberg' },
   { code: 'HD', uic: '8400294', name: 'Harderwijk' },
   { code: 'HBZM', uic: '8400438', name: 'Hardinxveld Blauwe Zoom' },
