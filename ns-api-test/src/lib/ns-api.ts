@@ -83,6 +83,7 @@ export interface TrainUnit { // Add export keyword
   materieelnummer: number; // Add materieelnummer field
   // Assuming an image URL might be provided - adjust if needed
   afbeelding?: string; // Correct field name for image URL
+  eindbestemming?: string; // Destination specific to this part
   // Other properties like number of seats might exist
 }
 
@@ -255,7 +256,7 @@ export async function getArrivals(stationCode: string): Promise<Journey[]> {
 
 // --- Function to fetch Train Composition Details ---
 // Returns an object with length, parts, and potentially destination, or null on failure
-export async function getTrainComposition(trainNumber: string): Promise<{ length: number; parts: TrainUnit[]; destination?: string } | null> {
+export async function getTrainComposition(trainNumber: string, stationCode: string): Promise<{ length: number; parts: TrainUnit[]; destination?: string } | null> {
   const apiKey = process.env.NSR_API_KEY;
 
   if (!apiKey) {
@@ -263,10 +264,11 @@ export async function getTrainComposition(trainNumber: string): Promise<{ length
     return null; // Return null if API key is missing
   }
 
-  const apiUrl = `https://gateway.apiportal.ns.nl/virtual-train-api/v1/trein/${trainNumber}`;
+  // Use the endpoint that includes the station code
+  const apiUrl = `https://gateway.apiportal.ns.nl/virtual-train-api/v1/trein/${trainNumber}/${stationCode}`;
 
   try {
-    console.log(`[DEBUG] Fetching Composition URL: ${apiUrl}`); // Add debug log
+    // console.log(`[DEBUG] Fetching Composition URL for train ${trainNumber} at station ${stationCode}: ${apiUrl}`); // Removed debug log
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -280,32 +282,34 @@ export async function getTrainComposition(trainNumber: string): Promise<{ length
       // Handle cases like 404 Not Found if composition isn't available
       if (response.status === 404) {
         // Don't warn for 404, it's common if composition isn't available for that train/time
-        // console.warn(`Composition data not found for train ${trainNumber} (Status 404)`);
+        console.warn(`Composition data not found for train ${trainNumber} at station ${stationCode} (Status 404)`); // Updated warning
         return null;
       }
       const errorBody = await response.text(); // Use const
-      console.error(`Error fetching composition for train ${trainNumber}: ${response.status} ${response.statusText}`, errorBody);
+      console.error(`Error fetching composition for train ${trainNumber} at station ${stationCode}: ${response.status} ${response.statusText}`, errorBody); // Updated error log
       // Depending on requirements, might return null or throw
       return null;
     }
 
     const data: CompositionResponse = await response.json();
 
+    // console.log(`[DEBUG] Raw NS Virtual Train API Response for train ${trainNumber} at station ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
+
     // Check for expected structure
     if (typeof data.lengte === 'number' && Array.isArray(data.materieeldelen)) {
-      // console.log(`Composition found for train ${trainNumber}, length: ${data.lengte}, parts: ${data.materieeldelen.length}, richting: ${data.richting}`); // Keep commented
+      // console.log(`Composition found for train ${trainNumber} at station ${stationCode}, length: ${data.lengte}, parts: ${data.materieeldelen.length}, richting: ${data.richting}`); // Updated comment
       return {
         length: data.lengte,
         parts: data.materieeldelen,
         destination: data.richting // Include destination if present
       };
     } else {
-      console.warn(`Could not determine composition from response for train ${trainNumber}. Missing 'lengte' or 'materieeldelen'. Response keys:`, Object.keys(data));
+      console.warn(`Could not determine composition from response for train ${trainNumber} at station ${stationCode}. Missing 'lengte' or 'materieeldelen'. Response keys:`, Object.keys(data)); // Updated warning
       return null;
     }
 
   } catch (error) {
-    console.error(`An error occurred while fetching composition for train ${trainNumber}:`, error);
+    console.error(`An error occurred while fetching composition for train ${trainNumber} at station ${stationCode}:`, error); // Updated error log
     return null; // Return null on error
   }
 }
@@ -323,7 +327,7 @@ export async function getJourneyDestination(trainNumber: string): Promise<string
     const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/journey?train=${trainNumber}`;
 
     try {
-        console.log(`[DEBUG] Fetching Journey Details URL: ${apiUrl}`); // Add debug log
+        // console.log(`[DEBUG] Fetching Journey Details URL: ${apiUrl}`); // Removed debug log
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
@@ -386,7 +390,7 @@ export async function getStationDisruptions(stationCode: string): Promise<Disrup
     const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v3/disruptions/station/${stationCode}`;
 
     try {
-        console.log(`[DEBUG] Fetching Disruptions URL: ${apiUrl}`);
+        // console.log(`[DEBUG] Fetching Disruptions URL: ${apiUrl}`); // Removed debug log
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
@@ -408,7 +412,7 @@ export async function getStationDisruptions(stationCode: string): Promise<Disrup
         }
 
         const data: Disruption[] = await response.json();
-        console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Log raw data
+        // console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
 
         // Filter for active disruptions if needed, though the API might already do this
         // return data.filter(d => d.isActive);

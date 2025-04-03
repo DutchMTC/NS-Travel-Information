@@ -2,9 +2,11 @@
 
 import { motion } from 'framer-motion'; // Removed AnimatePresence
 import { Journey, TrainUnit, DepartureMessage } from '../lib/ns-api'; // Import Journey instead of Departure
-import { FaLongArrowAltRight } from 'react-icons/fa'; // Import a different arrow icon
+import { FaLongArrowAltRight } from 'react-icons/fa';
+import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
 import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
+import { stations } from '../lib/stations'; // Import stations data
 
 
 // Define the props type, including the composition data
@@ -17,7 +19,8 @@ import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
 // Define the expected shape of the data received from StationJourneyDisplay
 // which matches the response from the internal API route
 interface JourneyWithDetails extends Journey {
-  composition: { length: number; parts: TrainUnit[] } | null; // Composition without destination
+  // Composition parts might have individual destinations (eindbestemming)
+  composition: { length: number; parts: TrainUnit[]; destination?: string } | null;
   finalDestination?: string | null; // Destination fetched separately
 }
 
@@ -52,6 +55,10 @@ const itemVariants = {
 
 // Removed unused detailsVariants
 
+// Create a lookup map for station codes to names for efficient access
+// Create a lookup map for station codes (converted to uppercase) to names
+const stationCodeToNameMap = new Map(stations.map(s => [s.code.toUpperCase(), s.name]));
+
 export default function JourneyList({ journeys, listType }: JourneyListProps) {
   // Removed useState and handleToggle for expandedIndex
 
@@ -68,6 +75,18 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
         const plannedTimeFormatted = formatTime(journey.plannedDateTime);
         const actualTimeFormatted = formatTime(journey.actualDateTime); // Format actual time
         // Removed isExpanded variable
+
+        // Check for shortened journey warning
+        let shortenedDestination = null;
+        const warningMessagePrefix = "Rijdt niet verder dan ";
+        const warningMessage = journey.messages?.find(msg =>
+          msg.message.startsWith(warningMessagePrefix) && msg.style === 'WARNING'
+        );
+
+        if (warningMessage) {
+          // Extract station name, removing brackets if present
+          shortenedDestination = warningMessage.message.substring(warningMessagePrefix.length).replace(/\[|\]/g, '');
+        }
 
         return (
           <motion.li
@@ -129,12 +148,27 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
                     </div>
                   ) : (
                     <div> {/* Container for Departure Direction + Type */}
-                       <span className={`font-medium text-lg ${journey.cancelled ? 'line-through text-red-700 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'}`}>
-                         {journey.direction}
-                       </span>
-                       <span className={`text-base ml-2 ${journey.cancelled ? 'text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
-                         ({journey.product.shortCategoryName})
-                       </span>
+                      {shortenedDestination ? (
+                        <>
+                          {/* Original destination with strikethrough */}
+                          <span className={`font-medium text-lg line-through ${journey.cancelled ? 'text-red-700 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'}`}>
+                            {journey.direction}
+                          </span>
+                          {/* New destination in red */}
+                          <span className="font-medium text-lg text-red-600 dark:text-red-400 ml-2">
+                            {shortenedDestination}
+                          </span>
+                        </>
+                      ) : (
+                        /* Normal destination */
+                        <span className={`font-medium text-lg ${journey.cancelled ? 'line-through text-red-700 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'}`}>
+                          {journey.direction}
+                        </span>
+                      )}
+                      {/* Train Type */}
+                      <span className={`text-base ml-2 ${journey.cancelled ? 'text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
+                        ({journey.product.shortCategoryName})
+                      </span>
                     </div>
                   )}
                 </div>
@@ -160,31 +194,79 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
             {/* Train Part Images (Moved outside expandable section, always visible) */}
             {journey.composition?.parts && journey.composition.parts.some(p => p.afbeelding) && (
                <div className="mt-1"> {/* Adjusted margin */}
-                 {journey.composition.parts.map((part, partIndex) => (
-                   <div key={part.materieelnummer || partIndex} className="mb-2"> {/* Wrapper for image + text, use materieelnummer as key */}
-                     {part.afbeelding ? (
-                       <Image src={part.afbeelding} alt={part.type} title={part.type} width={300} height={84} quality={100} unoptimized={true} className="h-7 w-auto object-contain" />
-                     ) : (
-                       <div className="h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs italic">(No image)</div>
-                     )}
-                     {/* Display type and number below each image */}
-                     <div className="text-xs text-left text-gray-600 dark:text-gray-400 mt-0.5"> {/* Changed text-center to text-left */}
-                       {part.type} ({part.materieelnummer})
+                 {journey.composition.parts.map((part, partIndex) => { // Removed arr from map args
+                   const partDestinationCode = part.eindbestemming;
+                   const partDestinationName = partDestinationCode ? stationCodeToNameMap.get(partDestinationCode) : undefined;
+
+                   // Determine the overall journey destination name
+                   const overallDestinationName = listType === 'departures' ? journey.direction : journey.finalDestination;
+
+                   // Check if the part destination exists and is different from the overall destination
+                   const showPartDestinationBox = partDestinationName && partDestinationName !== overallDestinationName;
+
+                   // Revert to previous styling: conditional background/padding, mb-2, full rounding
+                   return (
+                     <div
+                       key={part.materieelnummer || partIndex}
+                       // Apply padding and background to all parts, changing color based on destination difference
+                       className={`mb-2 p-2 rounded ${showPartDestinationBox ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700'}`} // Reinstated gray background for normal parts
+                     >
+                       {/* Image */}
+                       {part.afbeelding ? (
+                         <Image src={part.afbeelding} alt={part.type} title={part.type} width={300} height={84} quality={100} unoptimized={true} className="h-7 w-auto object-contain" />
+                       ) : (
+                         <div className="h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs italic">(No image)</div>
+                       )}
+                       {/* Type, Number, and optional Destination Warning */}
+                       <div className="flex items-center text-xs text-left text-gray-600 dark:text-gray-400 mt-0.5">
+                         {/* Type and Number */}
+                         <span>{part.type} ({part.materieelnummer})</span>
+                         {/* Display part-specific destination info inline if conditions met */}
+                         {showPartDestinationBox && (
+                           <div className="flex items-center ml-2"> {/* Use ml-2 for spacing */}
+                             <FiAlertTriangle className="text-red-600 dark:text-red-400 mr-1 flex-shrink-0" aria-hidden="true" /> {/* Added flex-shrink-0 */}
+                             <span className="font-medium text-red-600 dark:text-red-400"> {/* Changed p to span */}
+                               {/* Display the translated name */}
+                               This train part ends at {partDestinationName || partDestinationCode} {/* Fallback to code if name not found */}
+                             </span>
+                           </div>
+                         )}
+                       </div>
                      </div>
-                   </div>
-                 ))}
+                   );
+                 })}
                </div>
             )}
 
-            {/* Messages Row (Always Visible) */}
+           {/* Removed the overall composition destination display */}
+
+           {/* Messages Row (Always Visible) */}
             {/* Messages Row (Always Visible) - Restructured conditional rendering */}
-            {journey.messages && journey.messages.length > 0 && (() => {
-              const messageClasses = journey.cancelled
-                ? 'bg-red-600 text-white' // Style for cancelled
-                : 'text-yellow-800 bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700/50'; // Style for non-cancelled
+            {(() => { // Wrap in IIFE to handle filtering logic cleanly
+              // Filter out messages about specific train parts ending early, as this is shown on the part itself
+              const messageRegex = /^Treinstel \d+ rijdt niet verder dan .*$/;
+              const filteredMessages = journey.messages?.filter(msg => !messageRegex.test(msg.message)) ?? [];
+
+              if (filteredMessages.length === 0) {
+                return null; // Don't render the message box if no relevant messages remain
+              }
+
+              // Determine message box styling based on cancelled status or shortened destination (using original logic)
+              let messageClasses = '';
+              if (journey.cancelled) {
+                messageClasses = 'bg-red-600 text-white'; // Style for fully cancelled
+              } else if (shortenedDestination) {
+                // Style for shortened journey warning (red) - This applies if the *overall* journey is shortened
+                messageClasses = 'text-red-800 bg-red-50 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/50';
+              } else {
+                // Default style for other warnings/messages (yellow)
+                messageClasses = 'text-yellow-800 bg-yellow-50 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700/50';
+              }
+
               return (
                 <div className={`mt-2 text-sm rounded p-2 ${messageClasses}`}>
-                  {journey.messages.map((msg: DepartureMessage, msgIndex: number) => ( // Add types for msg and msgIndex
+                  {/* Map over the filtered messages */}
+                  {filteredMessages.map((msg: DepartureMessage, msgIndex: number) => (
                     <p key={msgIndex}>{msg.message}</p>
                   ))}
                 </div>

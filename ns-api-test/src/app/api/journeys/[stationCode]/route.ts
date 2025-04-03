@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 // Combined type for response
 // Combined type for response, including composition and final destination
 interface JourneyWithDetails extends Journey {
-  composition: { length: number; parts: TrainUnit[] } | null; // Composition without destination here
+  composition: { length: number; parts: TrainUnit[]; destination?: string } | null; // Include destination from composition
   finalDestination?: string | null; // Destination fetched separately
 }
 
@@ -55,7 +55,7 @@ export async function GET(
       // Fetch compositions and (only for arrivals) destinations in parallel
       const detailPromises = baseJourneys.map(async (j) => {
           const trainNumber = j.product.number;
-          const compositionPromise = getTrainComposition(trainNumber).catch(e => {
+          const compositionPromise = getTrainComposition(trainNumber, stationCodeUpper).catch(e => {
               console.error(`API Route: Failed to fetch composition for train ${trainNumber}:`, e);
               return null;
           });
@@ -73,11 +73,7 @@ export async function GET(
           // Await both promises for this journey
           const [compositionResult, destinationResult] = await Promise.all([compositionPromise, destinationPromise]);
 
-          // --- DEBUG LOG (Moved inside map to log after resolution) ---
-          if (type === 'arrivals') {
-              console.log(`[DEBUG] API Route - Train ${trainNumber} (Arrival): Destination -> ${destinationResult ?? 'Not Found'}`);
-          }
-          // --- END DEBUG LOG ---
+          // Debug log removed
 
           return { compositionResult, destinationResult }; // Return results for this journey
       });
@@ -87,7 +83,10 @@ export async function GET(
       // Combine journeys with their fetched details
       journeysWithDetails = baseJourneys.map((j, index) => {
           const { compositionResult, destinationResult } = details[index];
-          const compositionData = compositionResult ? { length: compositionResult.length, parts: compositionResult.parts } : null;
+          // Include destination from composition result if available
+          const compositionData = compositionResult
+              ? { length: compositionResult.length, parts: compositionResult.parts, destination: compositionResult.destination }
+              : null;
 
           return {
               ...j,
