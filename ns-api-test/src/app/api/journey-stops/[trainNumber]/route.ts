@@ -43,10 +43,8 @@ interface JourneyDetailsResponse {
 }
 
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: { trainNumber: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ trainNumber: string }> }) {
+    const params = await props.params;
     const trainNumber = params.trainNumber;
     const apiKey = process.env.NSR_API_KEY;
 
