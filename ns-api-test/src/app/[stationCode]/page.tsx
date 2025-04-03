@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'; // Import Metadata types
 import { stations } from '../../lib/stations'; // Keep stations for name lookup
 import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; // Import the client wrapper
-import { AnimatedStationHeading } from '../../components/AnimatedStationHeading'; // Import the new heading component
+// import { AnimatedStationHeading } from '../../components/AnimatedStationHeading'; // Removed as heading is now in client component
 
 // Define base URL (consistent with layout.tsx)
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
