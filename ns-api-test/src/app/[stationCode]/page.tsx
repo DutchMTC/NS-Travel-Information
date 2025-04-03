@@ -8,14 +8,15 @@ const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 // Define props for the page component and generateMetadata
 interface StationPageProps {
-  params: { stationCode: string }; // Params are directly available in Server Components
-  searchParams?: { [key: string]: string | string[] | undefined }; // SearchParams are directly available
+  params: Promise<{ stationCode: string }>; // Params are directly available in Server Components
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>; // SearchParams are directly available
 }
 
 // --- Dynamic Metadata Generation ---
 // Correct: Destructure params directly
 // generateMetadata receives props directly
-export async function generateMetadata({ params }: StationPageProps): Promise<Metadata> {
+export async function generateMetadata(props: StationPageProps): Promise<Metadata> {
+  const params = await props.params;
   const stationCode = params.stationCode.toUpperCase();
   const station = stations.find(s => s.code.toUpperCase() === stationCode);
   const stationName = station ? station.name : stationCode; // Fallback to code
@@ -36,7 +37,9 @@ export async function generateMetadata({ params }: StationPageProps): Promise<Me
 
 // --- Page Component ---
 // Page component receives props directly
-export default function StationPage({ params, searchParams }: StationPageProps) {
+export default async function StationPage(props: StationPageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const { stationCode } = params;
   const upperCaseStationCode = stationCode.toUpperCase();
 
