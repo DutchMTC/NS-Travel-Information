@@ -1,6 +1,7 @@
 "use client"; // This component needs client-side interactivity
 
-import { motion } from 'framer-motion'; // Removed AnimatePresence
+import { useState } from 'react'; // Import useState
+import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
 import { Journey, TrainUnit, DepartureMessage } from '../lib/ns-api'; // Import Journey instead of Departure
 import { FaLongArrowAltRight, FaStar } from 'react-icons/fa'; // Added FaStar
 import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
@@ -25,9 +26,35 @@ interface JourneyWithDetails extends Journey {
   finalDestination?: string | null; // Destination fetched separately
 }
 
+// Interface for a single arrival or departure event at a stop
+interface StopEvent {
+    plannedTime: string; // ISO 8601 format
+    actualTime?: string;  // ISO 8601 format (optional)
+    delayInSeconds?: number;
+    cancelled?: boolean;
+    plannedTrack?: string; // Added planned track
+    actualTrack?: string;  // Added actual track
+    // Add other potential fields if needed
+}
+
+// Updated interface for the overall stop information (matching API route)
+interface JourneyStop {
+    id: string;
+    stop: {
+        name: string;
+        uicCode: string;
+        // Add other fields if needed from the API response
+    };
+    arrivals: StopEvent[];   // Array of arrival events (usually just one)
+    departures: StopEvent[]; // Array of departure events (usually just one)
+    // Add other potential fields like status if needed
+}
+
+
 interface JourneyListProps {
   journeys: JourneyWithDetails[]; // Use the updated type
   listType: 'departures' | 'arrivals'; // Add type to distinguish list content
+  currentStationUic: string; // Add prop for the current station's UIC code
 }
 
 // Animation variants
@@ -54,14 +81,61 @@ const itemVariants = {
   },
 };
 
-// Removed unused detailsVariants
+const detailsVariants = {
+  hidden: { opacity: 0, height: 0 },
+  visible: {
+    opacity: 1,
+    height: 'auto',
+    transition: { duration: 0.3, ease: "easeInOut" }
+  },
+  exit: {
+    opacity: 0,
+    height: 0,
+    transition: { duration: 0.2, ease: "easeInOut" }
+   }
+};
+
 
 // Create a lookup map for station codes to names for efficient access
 // Create a lookup map for station codes (converted to uppercase) to names
 const stationCodeToNameMap = new Map(stations.map(s => [s.code.toUpperCase(), s.name]));
 
-export default function JourneyList({ journeys, listType }: JourneyListProps) {
-  // Removed useState and handleToggle for expandedIndex
+export default function JourneyList({ journeys, listType, currentStationUic }: JourneyListProps) {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [stopsData, setStopsData] = useState<Record<string, JourneyStop[]>>({}); // Cache for stops
+  const [loadingStops, setLoadingStops] = useState<boolean>(false);
+  const [errorStops, setErrorStops] = useState<string | null>(null);
+
+  const handleToggle = async (index: number, trainNumber: string) => {
+    const isOpening = expandedIndex !== index;
+    setExpandedIndex(isOpening ? index : null); // Toggle expansion
+
+    // If opening and stops not already fetched for this train
+    if (isOpening && !stopsData[trainNumber]) {
+      setLoadingStops(true);
+      setErrorStops(null);
+      try {
+        const response = await fetch(`/api/journey-stops/${trainNumber}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch stops (${response.status})`);
+        }
+        const stops: JourneyStop[] = await response.json();
+        // console.log(`[DEBUG] Fetched stops data for train ${trainNumber}:`, stops); // Removed debug log
+        setStopsData(prev => ({ ...prev, [trainNumber]: stops }));
+      } catch (err) {
+        console.error("Error fetching journey stops:", err);
+        setErrorStops(err instanceof Error ? err.message : "Could not load stops.");
+        // Optionally collapse on error: setExpandedIndex(null);
+      } finally {
+        setLoadingStops(false);
+      }
+    } else if (!isOpening) {
+        // Clear loading/error when collapsing
+        setLoadingStops(false);
+        setErrorStops(null);
+    }
+  };
 
   return (
     <motion.ul
@@ -70,12 +144,13 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
       initial="hidden"
       animate="visible"
     >
-      {journeys.map((journey) => { // Removed unused index
+      {journeys.map((journey, index) => { // Add index back
         // Use journey instead of dep
         const delayMinutes = calculateDelay(journey.plannedDateTime, journey.actualDateTime);
         const plannedTimeFormatted = formatTime(journey.plannedDateTime);
         const actualTimeFormatted = formatTime(journey.actualDateTime); // Format actual time
-        // Removed isExpanded variable
+        const isExpanded = index === expandedIndex;
+        const trainNumber = journey.product.number; // Get train number for fetching stops
 
         // Check for shortened journey warning
         let shortenedDestination = null;
@@ -99,7 +174,7 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
             key={journey.plannedDateTime + '-' + journey.product.number} // Use more stable key
             className={`p-4 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer ${journey.cancelled ? 'bg-red-50 dark:bg-red-900/30' : ''}`} // Added dark mode hover/cancelled bg
             variants={itemVariants}
-            // Removed onClick handler
+            onClick={() => handleToggle(index, trainNumber)} // Add onClick handler
           >
             {/* Main Info Row */}
             <div className="flex justify-between items-start mb-2">
@@ -320,6 +395,116 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
                 </div>
               );
             })()}
+            {/* --- Intermediate Stops Section --- */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  key="stops-details"
+                  variants={detailsVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                  className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 overflow-hidden" // Added styling and overflow hidden
+                >
+                  {loadingStops && <p className="text-sm text-gray-500 dark:text-gray-400 italic">Loading stops...</p>}
+                  {errorStops && <p className="text-sm text-red-600 dark:text-red-400">Error: {errorStops}</p>}
+                  {!loadingStops && !errorStops && stopsData[trainNumber] && (
+                    <div>
+                      <h4 className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Intermediate Stops:</h4>
+                      {(() => {
+                        const allStops = stopsData[trainNumber] || [];
+                        // Find the index of the current station (case-insensitive comparison)
+                        const currentStationUicUpper = currentStationUic.toUpperCase();
+                        const currentStationIndex = allStops.findIndex(s => s.stop.uicCode?.toUpperCase() === currentStationUicUpper);
+
+                        // Filter stops: only show those *after* the current station
+                        // If current station not found (shouldn't happen often), show all stops for debugging? Or none? Let's show none for now.
+                        const relevantStops = currentStationIndex !== -1
+                          ? allStops.slice(currentStationIndex + 1)
+                          : [];
+
+                        // Filter relevantStops to only include those with actual arrival data (i.e., they are stopping points)
+                        const stoppingRelevantStops = relevantStops.filter(stop => stop.arrivals && stop.arrivals.length > 0);
+
+                        if (stoppingRelevantStops.length === 0) {
+                          // Attempt to get the station name from the map
+                          const currentStationName = stationCodeToNameMap.get(currentStationUicUpper);
+                          // Display message with name if found, otherwise a generic message
+                          return <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                            {currentStationName ? `${currentStationName} is the final destination of this train.` : 'This is the final destination of this train.'}
+                          </p>;
+                        }
+
+                        // Return the list directly if there are stops
+                        return (
+                          <ul className="text-sm space-y-2">
+                            {stoppingRelevantStops.map((stop) => {
+                              // We know arrivalEvent exists because of the filter above
+                              const arrivalEvent = stop.arrivals[0];
+                              const plannedTime = arrivalEvent.plannedTime ? formatTime(arrivalEvent.plannedTime) : '--:--';
+                              const actualTime = arrivalEvent.actualTime ? formatTime(arrivalEvent.actualTime) : null;
+                              const delay = (arrivalEvent.plannedTime && arrivalEvent.actualTime)
+                                ? calculateDelay(arrivalEvent.plannedTime, arrivalEvent.actualTime)
+                                : 0;
+                              const isCancelled = arrivalEvent.cancelled ?? false;
+
+                              return (
+                                <li key={stop.id} className={`flex flex-col p-2 rounded bg-gray-100 dark:bg-gray-700 ${isCancelled ? 'text-red-600 dark:text-red-400 opacity-70' : 'text-gray-700 dark:text-gray-300'}`}>
+                                  {/* Top Row: Time Info Only */}
+                                  <div className="flex items-center space-x-1 text-xs mb-0.5"> {/* Reduced margin-bottom */}
+                                    {isCancelled ? (
+                                      <span className="px-1.5 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 rounded font-medium">Cancelled</span>
+                                    ) : (
+                                      <>
+                                        <span className={`font-medium text-blue-700 dark:text-blue-400 ${delay > 0 ? 'line-through' : ''}`}>
+                                          {plannedTime}
+                                        </span>
+                                        {actualTime && delay > 0 && (
+                                          <span className="font-medium text-red-600 dark:text-red-400">{actualTime}</span>
+                                        )}
+                                        {delay > 0 && (
+                                          <span className="font-medium text-red-600 dark:text-red-400">(+{delay})</span>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+
+                                  {/* Bottom Row: Track + Stop Name */}
+                                  <div className="flex items-center space-x-2"> {/* New div for track and name */}
+                                    {/* Track Info (only if not cancelled) */}
+                                    {!isCancelled && (
+                                      (() => {
+                                        const plannedTrack = arrivalEvent.plannedTrack;
+                                        const actualTrack = arrivalEvent.actualTrack;
+                                        const displayTrack = actualTrack ?? plannedTrack ?? '?';
+                                        const trackChanged = actualTrack && plannedTrack && actualTrack !== plannedTrack;
+
+                                        return (
+                                          <span className={`flex items-center justify-center w-6 h-6 rounded border text-xs font-semibold flex-shrink-0 ${
+                                            trackChanged
+                                              ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500'
+                                              : 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                                          }`}>
+                                            {displayTrack}
+                                          </span>
+                                        );
+                                      })()
+                                    )}
+                                    {/* Stop Name */}
+                                    <span className={`text-sm ${isCancelled ? 'line-through' : ''}`}>{stop.stop.name}</span>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()} {/* Invoke the IIFE here */}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* --- End Intermediate Stops Section --- */}
           </motion.li>
         );
       })}

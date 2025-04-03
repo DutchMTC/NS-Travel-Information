@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'; // Import Metadata types
 import { stations } from '../../lib/stations';
-import StationSearch from '@/components/StationSearch'; // Import StationSearch
+// import StationSearch from '@/components/StationSearch'; // No longer needed here
 import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; // Import the client wrapper
 // import { AnimatedStationHeading } from '../../components/AnimatedStationHeading'; // Removed as heading is now in client component
 
@@ -55,10 +55,7 @@ export default async function StationPage(props: StationPageProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
       <main className="max-w-4xl mx-auto p-4 sm:p-8">
-        {/* Add StationSearch here */}
-        <div className="mb-8 flex justify-center">
-          <StationSearch />
-        </div>
+        {/* StationSearch removed as functionality moved to main page */}
 
         {/* Render the client component, passing necessary props */}
         <StationJourneyDisplay

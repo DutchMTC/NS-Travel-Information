@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Journey, TrainUnit, Disruption } from '../lib/ns-api';
+import { stations as stationData } from '../lib/stations'; // Import station data
 import { formatDateTimeForApi } from '../lib/utils';
 import JourneyList from './DepartureList';
 import { JourneyTypeSwitch } from './JourneyTypeSwitch';
@@ -77,6 +78,13 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
     now.setMinutes(now.getMinutes() + debouncedOffsetMinutes);
     return formatDateTimeForApi(now);
   }, [debouncedOffsetMinutes]);
+
+  const currentStationUic = useMemo(() => {
+    // Find the station object matching the stationCode (case-insensitive)
+    const station = stationData.find(s => s.code.toUpperCase() === stationCode.toUpperCase());
+    // Return the UIC code or the original stationCode as a fallback (though ideally it should always be found)
+    return station ? station.uic : stationCode;
+  }, [stationCode]);
 
   // Callbacks
   const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string) => {
@@ -388,7 +396,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
 
       {/* Journey List */}
       {!isLoading && !error && journeys.length > 0 && (
-        <JourneyList journeys={journeys} listType={journeyType} />
+        <JourneyList journeys={journeys} listType={journeyType} currentStationUic={currentStationUic} />
       )}
     </motion.div>
   );

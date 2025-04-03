@@ -402,7 +402,7 @@ export default function TrainInfoSearch() {
       {/* Journey Card Display - Only show if stops are actually found AND not in the "Not In Service" state */}
       {!isLoading && !error && !isNotInService && stops.length > 0 && summary && (
         <> {/* Fragment to group heading and card */}
-          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Current Journey</h2>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Latest Journey</h2>
           <div className="border rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
             {/* Card Header - Clickable */}
             <button

@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // No longer needed
 import { stations, Station } from '../lib/stations';
 
-export default function StationSearch() {
+// Define props interface
+interface StationSearchProps {
+  onStationSelect: (stationCode: string) => void;
+}
+
+export default function StationSearch({ onStationSelect }: StationSearchProps) { // Destructure prop
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredStations, setFilteredStations] = useState<Station[]>([]);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const router = useRouter();
+  // const router = useRouter(); // No longer needed
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Update filtered stations based on search term
@@ -51,7 +56,8 @@ export default function StationSearch() {
   const handleStationSelect = (stationCode: string) => {
     setSearchTerm(''); // Clear search term
     setIsDropdownVisible(false); // Hide dropdown
-    router.push(`/${stationCode}`); // Navigate to station page
+    // router.push(`/${stationCode}`); // No longer navigate
+    onStationSelect(stationCode); // Call the callback prop instead
   };
 
   // Show dropdown with full list on focus if search is empty, or filtered list if not
