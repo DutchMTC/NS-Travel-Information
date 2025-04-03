@@ -237,7 +237,7 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
                      <div
                        key={part.materieelnummer || partIndex}
                        // Apply padding and background to all parts, changing color based on destination difference
-                       className={`mb-2 p-2 rounded ${showPartDestinationBox ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700'}`} // Reinstated gray background for normal parts
+                       className={`mb-2 p-2 rounded ${journey.cancelled ? 'bg-red-50 dark:bg-red-900/30' : showPartDestinationBox ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}
                      >
                        {/* Image */}
                        {part.afbeelding ? (

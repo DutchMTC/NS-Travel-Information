@@ -218,14 +218,23 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
           >
             <ClockIcon className="h-5 w-5" />
           </button>
-          {isOffsetPopoverOpen && (
-            <div className="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground border p-0 right-0 origin-top-right">
-              <TimeOffsetSettings
-                offsetMinutes={offsetMinutes} // Pass immediate value to input
-                onOffsetChange={handleOffsetChange}
-              />
-            </div>
-          )}
+          <AnimatePresence>
+            {isOffsetPopoverOpen && (
+              <motion.div
+                key="time-offset-popover"
+                initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                transition={{ duration: 0.2 }}
+                className="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground border p-0 right-0 origin-top-right"
+              >
+                <TimeOffsetSettings
+                  offsetMinutes={offsetMinutes} // Pass immediate value to input
+                  onOffsetChange={handleOffsetChange}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
@@ -293,7 +302,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="w-full max-w-2xl overflow-hidden"
+                className="w-full overflow-hidden"
               >
                 <div className="p-4 bg-orange-100 border border-orange-300 text-orange-800 rounded-md dark:bg-orange-900/30 dark:border-orange-700/50 dark:text-orange-300 mt-1">
                   <h3 className="font-bold text-lg mb-2 flex items-center">
