@@ -86,8 +86,9 @@ interface JourneyStopsApiResponse {
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { materieelnummer: string } }
+    props: { params: Promise<{ materieelnummer: string }> }
 ) {
+    const params = await props.params;
     const materieelnummer = params.materieelnummer;
 
     if (!NSR_API_KEY) {
