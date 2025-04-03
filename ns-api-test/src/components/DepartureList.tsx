@@ -1,10 +1,10 @@
 "use client"; // This component needs client-side interactivity
 
-import { useState, useMemo, useEffect } from 'react'; // Consolidated React imports
+import { useState, useMemo } from 'react'; // Removed unused useEffect
 // Removed duplicate import line
 import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
 import { Journey, TrainUnit, DepartureMessage } from '../lib/ns-api'; // Import Journey instead of Departure
-import { FaLongArrowAltRight, FaStar, FaFilter } from 'react-icons/fa'; // Added FaStar and FaFilter
+import { FaLongArrowAltRight, FaStar } from 'react-icons/fa'; // Removed unused FaFilter
 import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
 import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
@@ -52,10 +52,7 @@ interface JourneyStop {
 }
 
 
-interface FilterCounts {
-    types: number;
-    destinations: number; // Renamed from stops
-}
+// Removed unused FilterCounts interface
 
 // Removed FilterStatus interface as it's no longer needed here
 
@@ -259,7 +256,7 @@ export default function JourneyList({
       // If passed both filters (or filters not active), include the journey
       return true;
     });
-  }, [journeys, selectedTrainTypes, selectedDestinations, listType, stopsData]); // Updated dependencies
+  }, [journeys, selectedTrainTypes, selectedDestinations, listType]); // Removed unnecessary stopsData dependency
 
   // Removed useEffect for reporting filter counts (parent now has state)
   // --- End Filtering Logic ---

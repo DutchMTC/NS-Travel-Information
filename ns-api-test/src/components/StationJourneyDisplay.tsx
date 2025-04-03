@@ -44,11 +44,7 @@ interface ApiResponse {
   disruptions: Disruption[];
 }
 
-// Define interfaces needed for callbacks from JourneyList
-interface FilterCounts {
-    types: number;
-    destinations: number; // Renamed from stops
-}
+// Removed unused FilterCounts interface definition
 
 // Removed FilterStatus interface
 export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
