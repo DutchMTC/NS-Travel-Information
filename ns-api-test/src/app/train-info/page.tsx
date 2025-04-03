@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import TrainInfoSearch from '../../components/TrainInfoSearch'; // Using relative path for diagnosis
 
 export default function TrainInfoPage() {
@@ -12,7 +12,9 @@ export default function TrainInfoPage() {
       <p className="mb-8 text-center text-gray-600 dark:text-gray-400"> {/* Center paragraph */}
         Enter a materieelnummer to find its current journey details.
       </p>
-      <TrainInfoSearch />
+      <Suspense fallback={<div className="text-center p-4">Loading search...</div>}>
+        <TrainInfoSearch />
+      </Suspense>
     </main>
   );
 }
