@@ -22,6 +22,7 @@ export async function GET(
   const stationCode = pathnameParts[pathnameParts.length - 1];
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get('type') as 'departures' | 'arrivals' | null;
+  const dateTime = searchParams.get('dateTime'); // Get the dateTime parameter
 
   if (!stationCode) {
     return NextResponse.json({ error: 'Station code is required' }, { status: 400 });
@@ -41,7 +42,8 @@ export async function GET(
     const fetchFunction = type === 'departures' ? getDepartures : getArrivals;
     // Fetch base journeys and disruptions in parallel
     const stationCodeUpper = stationCode.toUpperCase();
-    const fetchJourneysPromise = fetchFunction(stationCodeUpper);
+    // Pass dateTime to the fetch function if it exists
+    const fetchJourneysPromise = fetchFunction(stationCodeUpper, dateTime ?? undefined);
     const fetchDisruptionsPromise = getStationDisruptions(stationCodeUpper);
 
     const [baseJourneys, disruptions] = await Promise.all([

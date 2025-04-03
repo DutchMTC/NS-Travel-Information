@@ -150,7 +150,7 @@ export interface Disruption {
 }
 
 // Shared function to fetch journeys (departures or arrivals)
-async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals'): Promise<Journey[]> {
+async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals', dateTime?: string): Promise<Journey[]> {
     const apiKey = process.env.NSR_API_KEY;
 
     if (!apiKey) {
@@ -165,6 +165,10 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
         station: stationCode,
         maxJourneys: '50', // Fetch a reasonable number
     });
+    // Add dateTime parameter if provided
+    if (dateTime) {
+        params.set('dateTime', dateTime);
+    }
     const apiUrl = `${baseUrl}?${params.toString()}`;
 
     try {
@@ -244,14 +248,14 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
     }
 }
 
-// Function to fetch departures for a given station
-export async function getDepartures(stationCode: string): Promise<Journey[]> {
-    return fetchJourneys(stationCode, 'departures');
+// Function to fetch departures for a given station, optionally at a specific time
+export async function getDepartures(stationCode: string, dateTime?: string): Promise<Journey[]> {
+    return fetchJourneys(stationCode, 'departures', dateTime);
 }
 
-// Function to fetch arrivals for a given station
-export async function getArrivals(stationCode: string): Promise<Journey[]> {
-    return fetchJourneys(stationCode, 'arrivals');
+// Function to fetch arrivals for a given station, optionally at a specific time
+export async function getArrivals(stationCode: string, dateTime?: string): Promise<Journey[]> {
+    return fetchJourneys(stationCode, 'arrivals', dateTime);
 }
 
 // --- Function to fetch Train Composition Details ---

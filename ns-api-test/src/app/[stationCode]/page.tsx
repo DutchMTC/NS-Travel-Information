@@ -8,15 +8,14 @@ const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 // Define props for the page component and generateMetadata
 interface StationPageProps {
-  params: Promise<{ stationCode: string }>; // Correct: params is the resolved object
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>; // Correct: searchParams is the resolved object
+  params: { stationCode: string }; // Params are directly available in Server Components
+  searchParams?: { [key: string]: string | string[] | undefined }; // SearchParams are directly available
 }
 
 // --- Dynamic Metadata Generation ---
 // Correct: Destructure params directly
-export async function generateMetadata(props: StationPageProps): Promise<Metadata> {
-  const params = await props.params;
-  // Correct: Access params directly
+// generateMetadata receives props directly
+export async function generateMetadata({ params }: StationPageProps): Promise<Metadata> {
   const stationCode = params.stationCode.toUpperCase();
   const station = stations.find(s => s.code.toUpperCase() === stationCode);
   const stationName = station ? station.name : stationCode; // Fallback to code
@@ -36,27 +35,29 @@ export async function generateMetadata(props: StationPageProps): Promise<Metadat
 }
 
 // --- Page Component ---
-// Correct: Make non-async, destructure params directly
-export default async function StationPage(props: StationPageProps) {
-  const params = await props.params;
-  const { stationCode } = params; // Destructure stationCode from params
+// Page component receives props directly
+export default function StationPage({ params, searchParams }: StationPageProps) {
+  const { stationCode } = params;
   const upperCaseStationCode = stationCode.toUpperCase();
 
   // Find the station name from the imported list (synchronous operation)
   const station = stations.find(s => s.code.toUpperCase() === upperCaseStationCode);
-  const stationName = station ? station.name : upperCaseStationCode; // Fallback to code
+  const stationName = station ? station.name : upperCaseStationCode;
+
+  // Read initial offset from searchParams on the server
+  const initialOffsetMinutes = parseInt(searchParams?.offsetM?.toString() || '0', 10);
 
   // No data fetching here, just render the client component responsible for fetching
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
       <main className="max-w-4xl mx-auto p-4 sm:p-8">
-        {/* Use the animated heading component */}
-        <AnimatedStationHeading stationName={stationName} />
+        {/* Heading moved to StationJourneyDisplay */}
 
         {/* Render the client component, passing necessary props */}
         <StationJourneyDisplay
           stationCode={upperCaseStationCode}
           stationName={stationName}
+          initialOffsetMinutes={isNaN(initialOffsetMinutes) ? 0 : initialOffsetMinutes} // Pass initial offset
         />
       </main>
     </div>
