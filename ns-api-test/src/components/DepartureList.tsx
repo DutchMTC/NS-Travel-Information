@@ -130,19 +130,47 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
                 <div> {/* Container for Dest + Type */}
                   {/* Conditional rendering for Arrivals vs Departures */}
                   {listType === 'arrivals' ? (
-                    <div className={`flex items-center flex-wrap ${journey.cancelled ? 'line-through text-red-700 dark:text-red-500' : ''}`}>
-                      <span className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium mr-2 px-2.5 py-0.5 rounded">
+                    <div className={`flex items-center flex-wrap ${journey.cancelled ? 'text-red-700 dark:text-red-500' : ''}`}>
+                      {/* From Station */}
+                      <span className={`bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium mr-2 px-2.5 py-0.5 rounded ${journey.cancelled ? 'line-through' : ''}`}>
                         From: {journey.origin}
                       </span>
-                      {journey.finalDestination && (
+
+                      {/* Arrow */}
+                      <FaLongArrowAltRight className={`text-gray-500 dark:text-gray-400 mx-1 self-center ${journey.cancelled ? 'line-through' : ''}`} />
+
+                      {/* To Station - Conditional based on shortened journey OR destination change */}
+                      {shortenedDestination ? (
+                        // Journey is shortened ("Rijdt niet verder dan")
                         <>
-                          <FaLongArrowAltRight className="text-gray-500 dark:text-gray-400 mx-1" />
-                          <span className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium mr-2 px-2.5 py-0.5 rounded">
-                            To: {journey.finalDestination}
+                          <span className={`bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium mr-1 px-2.5 py-0.5 rounded line-through ${journey.cancelled ? 'opacity-70' : ''}`}>
+                            {/* Show original intended destination if available */}
+                            To: {journey.finalDestination ?? journey.composition?.destination ?? 'Unknown'}
+                          </span>
+                          <span className={`bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-sm font-medium mr-2 px-2.5 py-0.5 rounded ${journey.cancelled ? 'line-through' : ''}`}>
+                            (Ends at: {shortenedDestination}) {/* Actual end station */}
                           </span>
                         </>
+                      ) : journey.finalDestination && journey.composition?.destination && journey.finalDestination !== journey.composition.destination ? (
+                        // Destination Changed (final vs composition)
+                        <>
+                          <span className={`bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium mr-1 px-2.5 py-0.5 rounded line-through ${journey.cancelled ? 'opacity-70' : ''}`}>
+                            To: {journey.composition.destination} {/* Original Destination from Composition */}
+                          </span>
+                          <span className={`bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 text-sm font-medium mr-2 px-2.5 py-0.5 rounded ${journey.cancelled ? 'line-through' : ''}`}>
+                            (Now: {journey.finalDestination}) {/* New Destination from Journey Details */}
+                          </span>
+                        </>
+                      ) : (
+                        // Destination Not Changed (or data missing/mismatch)
+                        <span className={`bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-medium mr-2 px-2.5 py-0.5 rounded ${journey.cancelled ? 'line-through' : ''}`}>
+                          {/* Show finalDestination if available, fallback to composition destination, then Unknown */}
+                          To: {journey.finalDestination ?? journey.composition?.destination ?? 'Unknown'}
+                        </span>
                       )}
-                      <span className={`text-base ml-1 ${journey.cancelled ? 'text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
+
+                      {/* Train Type */}
+                      <span className={`text-base ml-1 ${journey.cancelled ? 'line-through text-red-700 dark:text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
                          ({journey.product.shortCategoryName})
                       </span>
                     </div>
