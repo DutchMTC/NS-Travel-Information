@@ -70,7 +70,7 @@ export default function TrainInfoSearch() {
             let errorData = { error: "Train not found" }; // Default 404 message
             try {
                 errorData = await response.json();
-            } catch (jsonError) {
+            } catch (_jsonError) { // Prefix unused variable
                  // Ignore if error response is not JSON
             }
 
@@ -87,7 +87,7 @@ export default function TrainInfoSearch() {
              try {
                  const errorData = await response.json();
                  errorMsg = errorData.error || errorMsg;
-             } catch (jsonError) { /* Ignore */ }
+             } catch (_jsonError) { /* Ignore - Prefix unused variable */ }
             setError(errorMsg);
             setIsNotInService(false);
         }
