@@ -17,6 +17,13 @@ const ClockIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+// Simple Warning Icon SVG (Triangle with Exclamation)
+const WarningIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" {...props}>
+        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 3.001-1.742 3.001H4.42c-1.53 0-2.493-1.667-1.743-3.001l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1.75-5.75a.75.75 0 00-1.5 0v3a.75.75 0 001.5 0v-3z" clipRule="evenodd" />
+    </svg>
+);
+
 type JourneyType = 'departures' | 'arrivals';
 
 interface JourneyWithDetails extends Journey {
@@ -253,28 +260,50 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
             Active Disruptions
           </h3>
           <ul className="space-y-2">
-            {activeDisruptions.map((disruption) => (
-              <li key={disruption.id} className="text-sm space-y-1">
-                <p><strong className="font-semibold">{disruption.title}</strong></p>
-                {disruption.situation?.label && <p className="ml-2">- {disruption.situation.label}</p>}
-                {disruption.summaryAdditionalTravelTime?.label && (
-                  <p className="ml-2 flex items-center text-xs text-gray-700 dark:text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.414L11 10.586V6z" clipRule="evenodd" />
-                    </svg>
-                    {disruption.summaryAdditionalTravelTime.label}
-                  </p>
-                )}
-                {disruption.timespans?.[0]?.period && (
-                   <p className="ml-2 flex items-center text-xs text-gray-700 dark:text-gray-400">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                       <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                     </svg>
-                     {disruption.timespans[0].period}
-                   </p>
-                )}
-              </li>
-            ))}
+            {activeDisruptions.map((disruption) => {
+              // Debug log removed
+              return (
+                // List item for each disruption
+                <li key={disruption.id} className="text-sm space-y-1">
+                  {/* Disruption Title */}
+                  <p><strong className="font-semibold">{disruption.title}</strong></p>
+
+                  {/* Situation Label (from timespans) - Apply consistent styling */}
+                  {disruption.timespans?.[0]?.situation?.label && (
+                    <p className="ml-2 flex items-center text-xs text-gray-700 dark:text-gray-400">
+                      <WarningIcon className="h-3 w-3 mr-1 flex-shrink-0" /> {/* Use WarningIcon */}
+                      {disruption.timespans[0].situation.label}
+                    </p>
+                  )}
+
+                  {/* Additional Travel Time */}
+                  {disruption.summaryAdditionalTravelTime?.label && (
+                    <p className="ml-2 flex items-center text-xs text-gray-700 dark:text-gray-400">
+                      <ClockIcon className="h-3 w-3 mr-1" /> {/* Use ClockIcon component */}
+                      {disruption.summaryAdditionalTravelTime.label}
+                    </p>
+                  )}
+
+                  {/* Timespan Period */}
+                  {disruption.timespans?.[0]?.period && (
+                     <p className="ml-2 flex items-center text-xs text-gray-700 dark:text-gray-400">
+                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" viewBox="0 0 20 20" fill="currentColor"> {/* Calendar Icon */}
+                         <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                       </svg>
+                       {disruption.timespans[0].period}
+                     </p>
+                  )}
+
+                  {/* Expected Duration */}
+                  {disruption.expectedDuration?.description && (
+                    <p className="ml-2 flex items-center text-xs text-gray-700 dark:text-gray-400">
+                      <ClockIcon className="h-3 w-3 mr-1" /> {/* Use ClockIcon component */}
+                      Duration: {disruption.expectedDuration.description}
+                    </p>
+                  )}
+                </li> // Close the list item
+              ); // Close the return statement
+            })} {/* Close the map function callback */}
           </ul>
         </div>
       )}

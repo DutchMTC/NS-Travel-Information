@@ -191,7 +191,8 @@ export async function GET(
         }
 
         // Return the stops payload if found
-        return NextResponse.json(journeyData.payload.stops, { status: 200 });
+        // Return the entire payload (stops and notes)
+        return NextResponse.json(journeyData.payload, { status: 200 });
 
     } catch (error) {
         console.error('Internal server error:', error);

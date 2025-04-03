@@ -134,6 +134,11 @@ interface SummaryAdditionalTravelTime {
 
 interface Timespan {
   period?: string; // Make optional
+  start?: string; // Add start time
+  end?: string; // Add end time
+  situation?: Situation; // Add nested situation object
+  cause?: { label?: string }; // Add cause object
+  advices?: string[]; // Add advices array
   // Add other fields like start/end dates if known
 }
 
@@ -146,6 +151,7 @@ export interface Disruption {
   situation?: Situation; // Add nested situation object
   summaryAdditionalTravelTime?: SummaryAdditionalTravelTime; // Add nested travel time object
   timespans?: Timespan[]; // Add array of timespans
+  expectedDuration?: { description?: string }; // Add expected duration
   // Add other potential fields like 'description', 'publicationSections' if needed
 }
 
@@ -414,12 +420,12 @@ export async function getStationDisruptions(stationCode: string): Promise<Disrup
             console.error(`Error fetching disruptions for station ${stationCode}: ${response.status} ${response.statusText}`, errorBody);
             return []; // Return empty array on error
         }
+const data: Disruption[] = await response.json();
+// console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
 
-        const data: Disruption[] = await response.json();
-        // console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
-
-        // Filter for active disruptions if needed, though the API might already do this
-        // return data.filter(d => d.isActive);
+// Filter for active disruptions if needed, though the API might already do this
+// return data.filter(d => d.isActive);
+return data; // Return all disruptions fetched
         return data; // Return all disruptions fetched
 
     } catch (error) {
