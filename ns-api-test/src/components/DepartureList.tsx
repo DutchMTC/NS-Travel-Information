@@ -2,11 +2,12 @@
 
 import { motion } from 'framer-motion'; // Removed AnimatePresence
 import { Journey, TrainUnit, DepartureMessage } from '../lib/ns-api'; // Import Journey instead of Departure
-import { FaLongArrowAltRight } from 'react-icons/fa';
+import { FaLongArrowAltRight, FaStar } from 'react-icons/fa'; // Added FaStar
 import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
 import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
 import { stations } from '../lib/stations'; // Import stations data
+import { getSpecialLiveryName, getSpecialLiveryImageUrl } from '../lib/specialLiveries'; // Import special livery data and image getter
 
 
 // Define the props type, including the composition data
@@ -84,8 +85,13 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
         );
 
         if (warningMessage) {
-          // Extract station name, removing brackets if present
-          shortenedDestination = warningMessage.message.substring(warningMessagePrefix.length).replace(/\[|\]/g, '');
+          // Extract station name, removing brackets and anything after " door "
+          let extractedName = warningMessage.message.substring(warningMessagePrefix.length).replace(/\[|\]/g, '');
+          const doorIndex = extractedName.indexOf(" door ");
+          if (doorIndex !== -1) {
+            extractedName = extractedName.substring(0, doorIndex).trim();
+          }
+          shortenedDestination = extractedName;
         }
 
         return (
@@ -239,16 +245,30 @@ export default function JourneyList({ journeys, listType }: JourneyListProps) {
                        // Apply padding and background to all parts, changing color based on destination difference
                        className={`mb-2 p-2 rounded ${journey.cancelled ? 'bg-red-50 dark:bg-red-900/30' : showPartDestinationBox ? 'bg-red-50 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}
                      >
-                       {/* Image */}
-                       {part.afbeelding ? (
-                         <Image src={part.afbeelding} alt={part.type} title={part.type} width={300} height={84} quality={100} unoptimized={true} className="h-7 w-auto object-contain" />
-                       ) : (
-                         <div className="h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs italic">(No image)</div>
-                       )}
+                       {/* Image - Prioritize custom livery image */}
+                       {(() => {
+                         const customImageUrl = part.materieelnummer ? getSpecialLiveryImageUrl(part.materieelnummer.toString()) : undefined;
+                         const imageUrl = customImageUrl || part.afbeelding; // Use custom if available, else API image
+                         const imageAlt = part.materieelnummer ? getSpecialLiveryName(part.materieelnummer.toString()) || part.type : part.type; // Use livery name for alt if available
+
+                         return imageUrl ? (
+                           <Image src={imageUrl} alt={imageAlt} title={imageAlt} width={300} height={84} quality={100} unoptimized={true} className="h-7 w-auto object-contain" />
+                         ) : (
+                           <div className="h-7 flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs italic">(No image)</div> // Adjusted height to match image
+                         );
+                       })()}
                        {/* Type, Number, and optional Destination Warning */}
-                       <div className="flex items-center text-xs text-left text-gray-600 dark:text-gray-400 mt-0.5">
-                         {/* Type and Number */}
-                         <span>{part.type} ({part.materieelnummer})</span>
+                       <div className="flex items-center text-xs text-left text-gray-600 dark:text-gray-400 mt-0.5 flex-wrap"> {/* Added flex-wrap */}
+                         {/* Type, Number, and Livery */}
+                         <span>
+                           {part.type} ({ part.materieelnummer == null ? 'N/A' : (part.materieelnummer === 0 ? 'Unknown' : part.materieelnummer) }) {/* Handle null/undefined, 0, and other numbers */}
+                           {part.materieelnummer && getSpecialLiveryName(part.materieelnummer.toString()) && (
+                             <span className="inline-flex items-center ml-1 px-1.5 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 rounded text-xs font-medium"> {/* Added inline-flex and items-center */}
+                               <FaStar className="mr-1" aria-hidden="true" />
+                               {getSpecialLiveryName(part.materieelnummer.toString())} {/* Safe to call here as it's inside the conditional */}
+                             </span>
+                           )}
+                         </span>
                          {/* Display part-specific destination info inline if conditions met */}
                          {showPartDestinationBox && (
                            <div className="flex items-center ml-2"> {/* Use ml-2 for spacing */}
