@@ -1,6 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getDepartures, getArrivals, getTrainComposition, getJourneyDestination, getStationDisruptions, Journey, TrainUnit, Disruption } from '../../../../lib/ns-api'; // Add getStationDisruptions, Disruption
 
+// Force dynamic rendering, disable caching
+export const dynamic = 'force-dynamic';
+
 // Edge runtime removed to use standard serverless environment
 
 // Combined type for response
