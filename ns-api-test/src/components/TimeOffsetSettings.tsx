@@ -21,7 +21,7 @@ const TimeOffsetSettings: React.FC<TimeOffsetSettingsProps> = ({
   return (
     // Simplified layout for minutes only
     <div className="p-4 space-y-2">
-      <label htmlFor="offset-minutes" className="block text-sm font-medium">
+      <label htmlFor="offset-minutes" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
         Offset (Minutes from Now)
       </label>
       <input
@@ -33,7 +33,8 @@ const TimeOffsetSettings: React.FC<TimeOffsetSettingsProps> = ({
         // Display empty string if value is 0
         value={offsetMinutes === 0 ? '' : offsetMinutes}
         onChange={handleMinutesChange}
-        className="w-full p-2 border rounded-md bg-input text-foreground"
+        // Apply theme-consistent styling using Tailwind
+        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
         placeholder="0"
       />
       <p className="text-xs text-muted-foreground">Set the time offset in minutes from now.</p>

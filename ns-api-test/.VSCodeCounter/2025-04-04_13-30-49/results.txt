@@ -1,0 +1,62 @@
+Date : 2025-04-04 13:30:49
+Directory : d:\Personal\NS API Test\ns-api-test\src
+Total : 23 files,  8270 codes, 533 comments, 455 blanks, all 9258 lines
+
+Languages
++----------------+------------+------------+------------+------------+------------+
+| language       | files      | code       | comment    | blank      | total      |
++----------------+------------+------------+------------+------------+------------+
+| TypeScript     |          7 |      5,915 |        178 |        133 |      6,226 |
+| TypeScript JSX |         15 |      2,283 |        353 |        263 |      2,899 |
+| CSS            |          1 |         72 |          2 |         59 |        133 |
++----------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                  | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                     |         23 |      8,270 |        533 |        455 |      9,258 |
+| app                                                                                   |          8 |        569 |         96 |        149 |        814 |
+| app (Files)                                                                           |          3 |        203 |         24 |         73 |        300 |
+| app\[stationCode]                                                                     |          1 |         45 |         14 |         10 |         69 |
+| app\api                                                                               |          3 |        311 |         55 |         64 |        430 |
+| app\api\journey-stops                                                                 |          1 |         72 |         14 |         14 |        100 |
+| app\api\journey-stops\[trainNumber]                                                   |          1 |         72 |         14 |         14 |        100 |
+| app\api\journeys                                                                      |          1 |         84 |         21 |         24 |        129 |
+| app\api\journeys\[stationCode]                                                        |          1 |         84 |         21 |         24 |        129 |
+| app\api\train-info                                                                    |          1 |        155 |         20 |         26 |        201 |
+| app\api\train-info\[materieelnummer]                                                  |          1 |        155 |         20 |         26 |        201 |
+| app\train-info                                                                        |          1 |         10 |          3 |          2 |         15 |
+| components                                                                            |         11 |      2,097 |        314 |        237 |      2,648 |
+| lib                                                                                   |          4 |      5,604 |        123 |         69 |      5,796 |
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| filename                                                                              | language       | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| d:\Personal\NS API Test\ns-api-test\src\app\[stationCode]\page.tsx                    | TypeScript JSX |         45 |         14 |         10 |         69 |
+| d:\Personal\NS API Test\ns-api-test\src\app\api\journey-stops\[trainNumber]\route.ts  | TypeScript     |         72 |         14 |         14 |        100 |
+| d:\Personal\NS API Test\ns-api-test\src\app\api\journeys\[stationCode]\route.ts       | TypeScript     |         84 |         21 |         24 |        129 |
+| d:\Personal\NS API Test\ns-api-test\src\app\api\train-info\[materieelnummer]\route.ts | TypeScript     |        155 |         20 |         26 |        201 |
+| d:\Personal\NS API Test\ns-api-test\src\app\globals.css                               | CSS            |         72 |          2 |         59 |        133 |
+| d:\Personal\NS API Test\ns-api-test\src\app\layout.tsx                                | TypeScript JSX |         59 |         15 |          6 |         80 |
+| d:\Personal\NS API Test\ns-api-test\src\app\page.tsx                                  | TypeScript JSX |         72 |          7 |          8 |         87 |
+| d:\Personal\NS API Test\ns-api-test\src\app\train-info\page.tsx                       | TypeScript JSX |         10 |          3 |          2 |         15 |
+| d:\Personal\NS API Test\ns-api-test\src\components\AnimatedHeader.tsx                 | TypeScript JSX |         83 |          6 |          8 |         97 |
+| d:\Personal\NS API Test\ns-api-test\src\components\AnimatedStationHeading.tsx         | TypeScript JSX |         17 |          0 |          3 |         20 |
+| d:\Personal\NS API Test\ns-api-test\src\components\DepartureList.tsx                  | TypeScript JSX |        577 |        121 |         66 |        764 |
+| d:\Personal\NS API Test\ns-api-test\src\components\JourneyTypeSwitch.tsx              | TypeScript JSX |         35 |          0 |          6 |         41 |
+| d:\Personal\NS API Test\ns-api-test\src\components\StationJourneyDisplay.tsx          | TypeScript JSX |        409 |         54 |         42 |        505 |
+| d:\Personal\NS API Test\ns-api-test\src\components\StationSearch.tsx                  | TypeScript JSX |         81 |         12 |         10 |        103 |
+| d:\Personal\NS API Test\ns-api-test\src\components\ThemeProvider.tsx                  | TypeScript JSX |         48 |          2 |         12 |         62 |
+| d:\Personal\NS API Test\ns-api-test\src\components\ThemeToggleButton.tsx              | TypeScript JSX |         15 |          0 |          3 |         18 |
+| d:\Personal\NS API Test\ns-api-test\src\components\TimeOffsetSettings.tsx             | TypeScript JSX |         35 |          5 |          4 |         44 |
+| d:\Personal\NS API Test\ns-api-test\src\components\TrainInfoClientPage.tsx            | TypeScript JSX |         24 |          5 |          2 |         31 |
+| d:\Personal\NS API Test\ns-api-test\src\components\TrainInfoSearch.tsx                | TypeScript JSX |        773 |        109 |         81 |        963 |
+| d:\Personal\NS API Test\ns-api-test\src\lib\ns-api.ts                                 | TypeScript     |        318 |         70 |         53 |        441 |
+| d:\Personal\NS API Test\ns-api-test\src\lib\specialLiveries.ts                        | TypeScript     |         49 |         30 |          7 |         86 |
+| d:\Personal\NS API Test\ns-api-test\src\lib\stations.ts                               | TypeScript     |      5,176 |          2 |          1 |      5,179 |
+| d:\Personal\NS API Test\ns-api-test\src\lib\utils.ts                                  | TypeScript     |         61 |         21 |          8 |         90 |
+| Total                                                                                 |                |      8,270 |        533 |        455 |      9,258 |
++---------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+

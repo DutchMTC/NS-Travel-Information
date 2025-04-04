@@ -1,20 +1,4 @@
-export interface Station {
-  id: string;
-  code: string; // Station code (e.g., 'AMR')
-  uic: string;  // UIC code (e.g., '8400050')
-  name: string; // Station name (medium format)
-  name_short: string; // Short station name (e.g., 'Alkmaar')
-  name_long: string; // Long station name (e.g., 'Alkmaar')
-  slug: string; // URL-friendly version of the station name (e.g., 'alkmaar')
-  country: string; // Country code (e.g., 'NL')
-  type: string; // Type of station (e.g., 'knooppuntIntercitystation')
-  geo_lat: string; // Latitude of the station (e.g., '52.63777923584')
-  geo_lng: string; // Longitude of the station (e.g., '4.7397222518921')
-}
-
-// List of Dutch train stations with their codes and UIC codes
-// Source: stations-2023-09.csv, filtered for country=NL
-export const stations: Station[] = [
+[
   {
     "id": "266",
     "code": "HT",
@@ -5176,4 +5160,4 @@ export const stations: Station[] = [
     "geo_lat": "52.52764",
     "geo_lng": "6.05146"
   }
-];
+]

@@ -334,64 +334,68 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         </p>
       )}
 
-      {/* Controls */}
+      {/* Controls (Stacked Vertically) */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
-        className="mb-6 flex justify-center items-center gap-2 sm:gap-4" // Adjusted gap
+        className="mb-6 flex flex-col items-center gap-3" // Stack vertically, add gap
       >
-        {/* Journey Type Switch */}
-        <JourneyTypeSwitch currentType={journeyType} onChange={handleTypeChange} />
-
-        {/* Filter Button & Indicators */}
-        <div className="flex items-center gap-1">
-            {/* Removed Loading/Error Indicator for filters */}
-            {/* Filter Toggle Button */}
-            <button
-                ref={filterTriggerRef}
-                onClick={() => setShowFilterPanel(!showFilterPanel)}
-                className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
-                aria-expanded={showFilterPanel}
-                aria-controls="filter-options" // Make sure this ID matches the one in JourneyList
-            >
-                <FaFilter className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                Filter ({selectedTrainTypes.length > 0 || selectedDestinations.length > 0 ? `${selectedTrainTypes.length}T/${selectedDestinations.length}D` : 'None'}) {/* Use state lengths directly */}
-            </button>
+        {/* Journey Type Switch (Centered) */}
+        <div className="flex justify-center">
+            <JourneyTypeSwitch currentType={journeyType} onChange={handleTypeChange} />
         </div>
 
-        {/* Time Offset Button & Popover */}
-        <div className="relative"> {/* Removed ref={popoverRef} as it's handled internally now */}
-          <button
-            ref={triggerRef}
-            type="button"
-            onClick={() => setIsOffsetPopoverOpen(!isOffsetPopoverOpen)}
-            // Apply similar styling as Filter button
-            className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
-            aria-label="Set time offset"
-            aria-expanded={isOffsetPopoverOpen}
-          >
-            <ClockIcon className="h-5 w-5" />
-          </button>
-          <AnimatePresence>
-            {isOffsetPopoverOpen && (
-              <motion.div
-                key="time-offset-popover"
-                initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                transition={{ duration: 0.2 }}
-                // Use popoverRef here for click outside logic
-                ref={popoverRef}
-                className="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground border p-0 right-0 origin-top-right"
+        {/* Filter & Time Offset Buttons (Row below switch) */}
+        <div className="flex justify-center items-center gap-2 sm:gap-4">
+            {/* Filter Button & Indicators */}
+            <div className="flex items-center gap-1">
+                {/* Filter Toggle Button */}
+                <button
+                    ref={filterTriggerRef}
+                    onClick={() => setShowFilterPanel(!showFilterPanel)}
+                    className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+                    aria-expanded={showFilterPanel}
+                    aria-controls="filter-options" // Make sure this ID matches the one in JourneyList
+                >
+                    <FaFilter className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                    Filter ({selectedTrainTypes.length > 0 || selectedDestinations.length > 0 ? `${selectedTrainTypes.length}T/${selectedDestinations.length}D` : 'None'}) {/* Use state lengths directly */}
+                </button>
+            </div>
+
+            {/* Time Offset Button & Popover */}
+            <div className="relative">
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={() => setIsOffsetPopoverOpen(!isOffsetPopoverOpen)}
+                // Apply similar styling as Filter button
+                className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+                aria-label="Set time offset"
+                aria-expanded={isOffsetPopoverOpen}
               >
-                <TimeOffsetSettings
-                  offsetMinutes={offsetMinutes}
-                  onOffsetChange={handleOffsetChange}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <ClockIcon className="h-5 w-5" />
+              </button>
+              <AnimatePresence>
+                {isOffsetPopoverOpen && (
+                  <motion.div
+                    key="time-offset-popover"
+                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                    transition={{ duration: 0.2 }}
+                    // Use popoverRef here for click outside logic
+                    ref={popoverRef}
+                    className="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-0 right-0 origin-top-right" // Match button background, adjust border
+                  >
+                    <TimeOffsetSettings
+                      offsetMinutes={offsetMinutes}
+                      onOffsetChange={handleOffsetChange}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
         </div>
       </motion.div>
 
@@ -550,6 +554,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
             onDestinationChange={handleDestinationChange}
         />
       )}
+
     </motion.div>
   );
 };

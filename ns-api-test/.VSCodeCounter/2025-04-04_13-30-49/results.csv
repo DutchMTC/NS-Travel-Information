@@ -1,0 +1,25 @@
+"filename", "language", "TypeScript JSX", "TypeScript", "CSS", "comment", "blank", "total"
+"d:\Personal\NS API Test\ns-api-test\src\app\[stationCode]\page.tsx", "TypeScript JSX", 45, 0, 0, 14, 10, 69
+"d:\Personal\NS API Test\ns-api-test\src\app\api\journey-stops\[trainNumber]\route.ts", "TypeScript", 0, 72, 0, 14, 14, 100
+"d:\Personal\NS API Test\ns-api-test\src\app\api\journeys\[stationCode]\route.ts", "TypeScript", 0, 84, 0, 21, 24, 129
+"d:\Personal\NS API Test\ns-api-test\src\app\api\train-info\[materieelnummer]\route.ts", "TypeScript", 0, 155, 0, 20, 26, 201
+"d:\Personal\NS API Test\ns-api-test\src\app\globals.css", "CSS", 0, 0, 72, 2, 59, 133
+"d:\Personal\NS API Test\ns-api-test\src\app\layout.tsx", "TypeScript JSX", 59, 0, 0, 15, 6, 80
+"d:\Personal\NS API Test\ns-api-test\src\app\page.tsx", "TypeScript JSX", 72, 0, 0, 7, 8, 87
+"d:\Personal\NS API Test\ns-api-test\src\app\train-info\page.tsx", "TypeScript JSX", 10, 0, 0, 3, 2, 15
+"d:\Personal\NS API Test\ns-api-test\src\components\AnimatedHeader.tsx", "TypeScript JSX", 83, 0, 0, 6, 8, 97
+"d:\Personal\NS API Test\ns-api-test\src\components\AnimatedStationHeading.tsx", "TypeScript JSX", 17, 0, 0, 0, 3, 20
+"d:\Personal\NS API Test\ns-api-test\src\components\DepartureList.tsx", "TypeScript JSX", 577, 0, 0, 121, 66, 764
+"d:\Personal\NS API Test\ns-api-test\src\components\JourneyTypeSwitch.tsx", "TypeScript JSX", 35, 0, 0, 0, 6, 41
+"d:\Personal\NS API Test\ns-api-test\src\components\StationJourneyDisplay.tsx", "TypeScript JSX", 409, 0, 0, 54, 42, 505
+"d:\Personal\NS API Test\ns-api-test\src\components\StationSearch.tsx", "TypeScript JSX", 81, 0, 0, 12, 10, 103
+"d:\Personal\NS API Test\ns-api-test\src\components\ThemeProvider.tsx", "TypeScript JSX", 48, 0, 0, 2, 12, 62
+"d:\Personal\NS API Test\ns-api-test\src\components\ThemeToggleButton.tsx", "TypeScript JSX", 15, 0, 0, 0, 3, 18
+"d:\Personal\NS API Test\ns-api-test\src\components\TimeOffsetSettings.tsx", "TypeScript JSX", 35, 0, 0, 5, 4, 44
+"d:\Personal\NS API Test\ns-api-test\src\components\TrainInfoClientPage.tsx", "TypeScript JSX", 24, 0, 0, 5, 2, 31
+"d:\Personal\NS API Test\ns-api-test\src\components\TrainInfoSearch.tsx", "TypeScript JSX", 773, 0, 0, 109, 81, 963
+"d:\Personal\NS API Test\ns-api-test\src\lib\ns-api.ts", "TypeScript", 0, 318, 0, 70, 53, 441
+"d:\Personal\NS API Test\ns-api-test\src\lib\specialLiveries.ts", "TypeScript", 0, 49, 0, 30, 7, 86
+"d:\Personal\NS API Test\ns-api-test\src\lib\stations.ts", "TypeScript", 0, 5176, 0, 2, 1, 5179
+"d:\Personal\NS API Test\ns-api-test\src\lib\utils.ts", "TypeScript", 0, 61, 0, 21, 8, 90
+"Total", "-", 2283, 5915, 72, 533, 455, 9258
