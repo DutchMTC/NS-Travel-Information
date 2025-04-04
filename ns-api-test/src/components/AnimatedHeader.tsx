@@ -14,6 +14,8 @@
     const HeaderContent = () => {
       const searchParams = useSearchParams();
       const isPlainMode = searchParams.get('plain') === 'true';
+      const { theme } = useTheme(); // Get current theme - Moved before conditional return
+      const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Moved before conditional return
 
       // If plain mode is active, render nothing
       if (isPlainMode) {
@@ -21,8 +23,6 @@
       }
 
       // Original header logic starts here if not in plain mode
-      const { theme } = useTheme(); // Get current theme
-      const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
       const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
     

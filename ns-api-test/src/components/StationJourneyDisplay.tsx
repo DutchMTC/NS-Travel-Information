@@ -149,7 +149,8 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
             setIsLoading(false);
        }
     }
-  }, [stationCode]); // REMOVED isLoading dependency
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stationCode]); // isLoading deliberately omitted, see logic in finally block
 
   const handleTypeChange = (newType: JourneyType) => {
     setJourneyType(newType);
@@ -339,7 +340,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
-        className="mb-6 flex flex-col items-center gap-3" // Stack vertically, add gap
+        className="mt-6 mb-6 flex flex-col items-center gap-3" // Added mt-6, Stack vertically, add gap
       >
         {/* Journey Type Switch (Centered) */}
         <div className="flex justify-center">
