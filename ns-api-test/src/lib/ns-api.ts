@@ -193,8 +193,8 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
             try {
                 errorBody = await response.text();
             } catch { /* Ignore, no need for 'e' variable */ }
-            console.error(`Error fetching NS ${type}: ${response.status} ${response.statusText}`, errorBody);
-            throw new Error(`Failed to fetch ${type}. Status: ${response.status}. ${errorBody}`);
+            console.error(`[ns-api.ts] Error fetching NS ${type} for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody); // More detailed log
+            throw new Error(`Failed to fetch ${type}. Status: ${response.status}. Body: ${errorBody}`); // Include body in thrown error
         }
 
         const data = await response.json();
@@ -417,8 +417,9 @@ export async function getStationDisruptions(stationCode: string): Promise<Disrup
                  return []; // No disruptions is not an error
             }
             const errorBody = await response.text();
-            console.error(`Error fetching disruptions for station ${stationCode}: ${response.status} ${response.statusText}`, errorBody);
-            return []; // Return empty array on error
+            console.error(`[ns-api.ts] Error fetching NS disruptions for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody); // More detailed log
+            // Re-throw the error so Promise.all catches it properly in the API route
+            throw new Error(`Failed to fetch disruptions. Status: ${response.status}. Body: ${errorBody}`);
         }
 const data: Disruption[] = await response.json();
 // console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
@@ -429,7 +430,12 @@ return data; // Return all disruptions fetched
         return data; // Return all disruptions fetched
 
     } catch (error) {
-        console.error(`An error occurred while fetching disruptions for station ${stationCode}:`, error);
-        return []; // Return empty array on error
+        console.error(`[ns-api.ts] An error occurred while fetching or processing NS disruptions for station ${stationCode}:`, error); // More detailed log
+        // Re-throw the error so Promise.all catches it properly in the API route
+        if (error instanceof Error) {
+            throw error;
+        } else {
+            throw new Error(`An unknown error occurred during NS API request for disruptions.`);
+        }
     }
 }

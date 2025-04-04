@@ -17,6 +17,7 @@ export async function GET(
   request: NextRequest
   // context parameter removed as stationCode is extracted from request.nextUrl
 ) {
+  console.log(`[API Route Start] Handling GET request for: ${request.nextUrl.pathname}${request.nextUrl.search}`); // Log entry
   // Extract stationCode from the URL path for broader compatibility
   const pathnameParts = request.nextUrl.pathname.split('/');
   const stationCode = pathnameParts[pathnameParts.length - 1];
@@ -37,6 +38,7 @@ export async function GET(
     journeys: JourneyWithDetails[];
     disruptions: Disruption[];
   }
+  console.log(`[API Route Pre-Try] Station: ${stationCode}, Type: ${type}, DateTime: ${dateTime}`); // Log before try
   try {
     // Fetch base journeys (departures or arrivals)
     const fetchFunction = type === 'departures' ? getDepartures : getArrivals;
@@ -112,12 +114,13 @@ export async function GET(
     return NextResponse.json(responsePayload);
 
   } catch (error) {
-    console.error(`API Route Error fetching ${type} for ${stationCode}:`, error);
+    // Log the detailed error object caught by the API route handler
+    console.error(`[API Route Error] Caught error while fetching ${type} for ${stationCode}:`, error);
     const errorMessage = error instanceof Error ? error.message : `An unknown error occurred while fetching ${type} data.`;
     // Avoid exposing sensitive details like API key missing error directly
     const clientErrorMessage = errorMessage.includes("NS API Key is missing")
         ? "Server configuration error." // Generic message for client
-        : `Failed to fetch ${type} data.`;
+        : `Failed to fetch ${type} data.`; // Keep the generic client message
 
     // Ensure error response structure matches expected client handling if necessary
     // For now, just return the error message

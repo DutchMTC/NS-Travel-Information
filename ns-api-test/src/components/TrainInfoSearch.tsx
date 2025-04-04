@@ -5,9 +5,11 @@ import Image from 'next/image';
 import { FaStar, FaChevronDown, FaArrowDown, FaExclamationTriangle } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'; // Import hooks
-import { formatTime, calculateDelay } from '../lib/utils';
+import { formatTime, calculateDelay, formatDateTimeForApi } from '../lib/utils'; // Import formatDateTimeForApi
 import { getSpecialLiveryName, getSpecialLiveryImageUrl } from '../lib/specialLiveries';
-
+import { Journey, TrainUnit } from '../lib/ns-api'; // Import Journey type and TrainUnit for transfer data
+import DepartureList from './DepartureList'; // Import DepartureList
+import { stations } from '../lib/stations'; // Import station data for lookup
 // --- Types ---
 interface StationInfo { name: string; lng: number; lat: number; countryCode: string; uicCode: string; }
 interface Product { number: string; categoryCode: string; shortCategoryName: string; longCategoryName: string; operatorCode: string; operatorName: string; type: string; }
@@ -23,11 +25,33 @@ interface Note {
   alternativeTransport?: boolean;
 }
 
+// Interface matching the structure returned by /api/journeys and expected by DepartureList
+interface JourneyWithDetails extends Journey {
+  // Composition parts might have individual destinations (eindbestemming)
+  composition: { length: number; parts: TrainUnit[]; destination?: string } | null;
+  finalDestination?: string | null; // Destination fetched separately
+}
+
 interface JourneyPayload {
     stops: Stop[];
     notes?: Note[];
     // Add other potential payload fields if needed
 }
+// --- End Types ---
+
+// --- Helper Functions ---
+const getCurrentTime = () => new Date();
+
+const parseApiTime = (timeString?: string): Date | null => {
+  if (!timeString) return null;
+  try {
+    return new Date(timeString);
+  } catch (e) {
+    console.error("Error parsing time:", timeString, e);
+    return null;
+  }
+};
+// --- End Helper Functions ---
 // --- End Types ---
 
 export default function TrainInfoSearch() {
@@ -257,6 +281,257 @@ export default function TrainInfoSearch() {
 
   const summary = getJourneySummary(); // Will be null if no stops or specific train part not found
 
+      {/* --- Current Journey Section Component Definition --- */}
+      {/* (Placed here for clarity, could be outside the main component too) */}
+      const CurrentJourneySection: React.FC<{ stops: Stop[] }> = ({ stops }) => {
+        const [transferData, setTransferData] = useState<Record<string, { loading: boolean; error: string | null; departures: JourneyWithDetails[] }>>({}); // State for transfer data (use JourneyWithDetails)
+
+        const fetchTransfers = async (stationUic: string, arrivalTimeString?: string) => { // Add arrivalTimeString parameter
+          if (!stationUic || transferData[stationUic]?.departures || transferData[stationUic]?.loading) {
+            return; // Don't fetch if already loaded, loading, or no UIC
+          }
+
+          // --- Find the short station code from the UIC ---
+          const station = stations.find(s => s.uic === stationUic);
+          if (!station) {
+              console.error(`[fetchTransfers] Could not find station code for UIC: ${stationUic}`);
+              setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: `Invalid station UIC: ${stationUic}`, departures: [] } }));
+              return;
+          }
+          const stationCode = station.code; // Use the short code for the API call
+          // --- End station code lookup ---
+
+          setTransferData(prev => ({ ...prev, [stationUic]: { loading: true, error: null, departures: [] } }));
+
+          // Modified try block to always log raw response text
+          let rawResponseText = '';
+          let responseOk = false;
+          try {
+            // --- Calculate target time for transfers ---
+            let targetDateTimeString: string | undefined = undefined;
+            if (arrivalTimeString) {
+                const arrivalTime = parseApiTime(arrivalTimeString);
+                if (arrivalTime) {
+                    arrivalTime.setMinutes(arrivalTime.getMinutes() + 3); // Add 3 minutes
+                    targetDateTimeString = formatDateTimeForApi(arrivalTime);
+                } else {
+                    console.warn(`[fetchTransfers] Could not parse arrival time: ${arrivalTimeString}`);
+                }
+            }
+            // --- End target time calculation ---
+
+            // Use the found stationCode and optional dateTime in the URL
+            const apiUrl = `/api/journeys/${stationCode}?type=departures${targetDateTimeString ? `&dateTime=${encodeURIComponent(targetDateTimeString)}` : ''}`;
+            console.log(`[Fetching Transfers URL] ${apiUrl}`); // Log the URL being fetched
+            const response = await fetch(apiUrl);
+            responseOk = response.ok; // Store status before reading body
+            rawResponseText = await response.text(); // Read as text first
+
+            // Log the raw response regardless of status
+            console.log(`[Raw API Response for ${stationUic} - Status: ${response.status}]`);
+            console.log(rawResponseText);
+
+            if (!responseOk) {
+              // Set error state based on the raw text if status is not OK
+              setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: `API Error ${response.status}: ${rawResponseText.substring(0, 100)}...`, departures: [] } }));
+            } else {
+              // If response was OK, try to parse JSON
+              try {
+                const data: { journeys: JourneyWithDetails[], disruptions: any[] } = JSON.parse(rawResponseText); // Expect JourneyWithDetails
+                setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: null, departures: data.journeys || [] } }));
+              } catch (parseError) {
+                console.error("Error parsing JSON response:", parseError);
+                setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: "Failed to parse API response.", departures: [] } }));
+              }
+            }
+          } catch (fetchErr) {
+            // Catch errors during the fetch itself (e.g., network error)
+            console.error("Network or fetch error fetching transfers:", fetchErr);
+            const message = fetchErr instanceof Error ? fetchErr.message : "Network error fetching transfers.";
+            setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: message, departures: [] } }));
+          }
+        };
+
+
+        if (!stops || stops.length === 0) {
+          return null;
+        }
+
+        const now = getCurrentTime();
+        const finalStop = stops[stops.length - 1];
+        const finalArrivalEvent = finalStop?.arrivals[0];
+        // Use actualTime if available, otherwise plannedTime for final arrival check
+        const finalArrivalTime = parseApiTime(finalArrivalEvent?.actualTime ?? finalArrivalEvent?.plannedTime);
+
+        // Condition 1: Check if final arrival time is in the future
+        if (!finalArrivalTime || finalArrivalTime <= now) {
+          return null; // Don't render if journey is completed or final time invalid
+        }
+
+        // Condition 2: Determine Next Station and Upcoming Stops
+        let nextStopIndex = -1;
+        for (let i = 0; i < stops.length; i++) {
+          const stop = stops[i];
+          const arrivalEvent = stop.arrivals[0];
+          const departureEvent = stop.departures[0];
+
+          // Use actual times if available, fallback to planned
+          const arrivalTime = parseApiTime(arrivalEvent?.actualTime ?? arrivalEvent?.plannedTime);
+          const departureTime = parseApiTime(departureEvent?.actualTime ?? departureEvent?.plannedTime);
+
+
+          if (arrivalTime && now < arrivalTime) {
+            // Current time is before arrival at this stop -> this is the next stop
+            nextStopIndex = i;
+            break;
+          } else if (departureTime && arrivalTime && now >= arrivalTime && now < departureTime) {
+            // Current time is between arrival and departure at this stop -> the *following* stop is the next one
+            if (i + 1 < stops.length) {
+              nextStopIndex = i + 1;
+            } else {
+              // Train is at the last stop, but hasn't departed yet. No "next" stop.
+              nextStopIndex = -1; // Indicate no upcoming stops
+            }
+            break;
+          } else { // Note: This 'else' block becomes empty after removing the log, which is fine.
+          }
+          // If current time is after departureTime, continue loop
+        }
+ 
+         // If no next stop found (e.g., only final stop remains and arrival is in future)
+         if (nextStopIndex === -1 || nextStopIndex >= stops.length) {
+           return null; // Don't show section if only the final destination remains or is already reached/passed departure
+         }
+
+        const nextStop = stops[nextStopIndex];
+        const upcomingStops = stops.slice(nextStopIndex + 1);
+
+        return (
+          <div className="mb-4"> {/* Add margin below this section */}
+            <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Current Journey</h2>
+            <div className="border rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-700 overflow-hidden p-4 space-y-3">
+              {/* Next Station */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-1">Next Station:</h3>
+                <div className="flex items-center justify-between p-2 rounded bg-blue-50 dark:bg-blue-900/30 gap-2"> {/* Added gap */}
+                   <span className="font-medium text-gray-900 dark:text-gray-100 flex-grow"> {/* Added flex-grow */}
+                       {nextStop.stop.name}
+                       {(() => {
+                           // Check if the next stop is the final destination of the journey
+                           const isFinalDestination = nextStopIndex === (stops.length - 1);
+                           const timeToShow = isFinalDestination
+                               ? nextStop.arrivals[0]?.actualTime ?? nextStop.arrivals[0]?.plannedTime // Show arrival for final dest
+                               : nextStop.departures[0]?.actualTime ?? nextStop.departures[0]?.plannedTime; // Show departure otherwise
+                           return timeToShow ? <span className="text-sm text-gray-600 dark:text-gray-400 ml-2">({formatTime(timeToShow)})</span> : null;
+                       })()}
+                   </span>
+                   {/* Ensure uicCode exists before rendering button */}
+                   {nextStop.stop.uicCode && (
+                     <button
+                        onClick={() => fetchTransfers(nextStop.stop.uicCode, nextStop.arrivals[0]?.actualTime ?? nextStop.arrivals[0]?.plannedTime)}
+                        disabled={transferData[nextStop.stop.uicCode]?.loading}
+                        className="text-xs px-2 py-0.5 rounded bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Show transfers for ${nextStop.stop.name}`}
+                     >
+                        {transferData[nextStop.stop.uicCode]?.loading ? 'Loading...' : transferData[nextStop.stop.uicCode]?.departures ? 'Transfers' : 'Show Transfers'}
+                     </button>
+                   )}
+                </div>
+                {/* Display Transfer Data for Next Stop */}
+                {transferData[nextStop.stop.uicCode] && !transferData[nextStop.stop.uicCode].loading && (
+                  <div className="mt-2 pl-4 border-l-2 border-blue-200 dark:border-blue-700">
+                    {transferData[nextStop.stop.uicCode].error && (
+                      <p className="text-xs text-red-600 dark:text-red-400 italic">{transferData[nextStop.stop.uicCode].error}</p>
+                    )}
+                    {!transferData[nextStop.stop.uicCode].error && transferData[nextStop.stop.uicCode].departures.length === 0 && (
+                       <p className="text-xs text-gray-500 dark:text-gray-400 italic">No departures found.</p>
+                    )}
+                    {/* Use DepartureList component */}
+                    {transferData[nextStop.stop.uicCode]?.departures.length > 0 && (
+                       <DepartureList
+                           journeys={transferData[nextStop.stop.uicCode].departures}
+                           listType="departures"
+                           currentStationUic={nextStop.stop.uicCode} // Pass the UIC of the transfer station
+                           showFilterPanel={false} // Don't show filters here
+                           selectedTrainTypes={[]}
+                           selectedDestinations={[]}
+                           onTrainTypeChange={() => {}} // Dummy handlers
+                           onDestinationChange={() => {}}
+                       />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Upcoming Stops */}
+              {upcomingStops.length > 0 && (
+                <div>
+                  <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-1">Upcoming Stops:</h3>
+                  <ul className="space-y-2">
+                    {upcomingStops.map((stop, index) => {
+                      // Check if this is the last stop in the *original* stops array
+                      const isFinalDestination = (nextStopIndex + 1 + index) === (stops.length - 1);
+                      const timeToShow = isFinalDestination
+                          ? stop.arrivals[0]?.actualTime ?? stop.arrivals[0]?.plannedTime // Show arrival for final dest
+                          : stop.departures[0]?.actualTime ?? stop.departures[0]?.plannedTime; // Show departure otherwise
+
+                      return (
+                      <li key={stop.id}>
+                        <div className="flex items-center justify-between p-2 rounded bg-gray-50 dark:bg-gray-700/50 gap-2"> {/* Added gap */}
+                          <span className="text-sm text-gray-800 dark:text-gray-200 flex-grow"> {/* Added flex-grow */}
+                              {stop.stop.name}
+                              {timeToShow && (
+                                  <span className="text-xs text-gray-600 dark:text-gray-400 ml-2">({formatTime(timeToShow)})</span>
+                               )}
+                           </span>
+                           {/* Ensure uicCode exists before rendering button */}
+                           {stop.stop.uicCode && (
+                             <button
+                                onClick={() => fetchTransfers(stop.stop.uicCode, stop.arrivals[0]?.actualTime ?? stop.arrivals[0]?.plannedTime)} // Still use arrival time for transfer fetch base
+                                disabled={transferData[stop.stop.uicCode]?.loading}
+                                className="text-xs px-2 py-0.5 rounded bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label={`Show transfers for ${stop.stop.name}`}
+                             >
+                                {transferData[stop.stop.uicCode]?.loading ? 'Loading...' : transferData[stop.stop.uicCode]?.departures ? 'Transfers' : 'Show Transfers'}
+                             </button>
+                           )}
+                         </div>
+                         {/* Display Transfer Data for Upcoming Stop */}
+                         {transferData[stop.stop.uicCode] && !transferData[stop.stop.uicCode].loading && (
+                           <div className="mt-2 pl-4 border-l-2 border-gray-200 dark:border-gray-600">
+                             {transferData[stop.stop.uicCode].error && (
+                               <p className="text-xs text-red-600 dark:text-red-400 italic">{transferData[stop.stop.uicCode].error}</p>
+                             )}
+                             {!transferData[stop.stop.uicCode].error && transferData[stop.stop.uicCode].departures.length === 0 && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 italic">No departures found.</p>
+                             )}
+                             {/* Use DepartureList component */}
+                             {transferData[stop.stop.uicCode]?.departures.length > 0 && (
+                               <DepartureList
+                                   journeys={transferData[stop.stop.uicCode].departures}
+                                   listType="departures"
+                                   currentStationUic={stop.stop.uicCode} // Pass the UIC of the transfer station
+                                   showFilterPanel={false} // Don't show filters here
+                                   selectedTrainTypes={[]}
+                                   selectedDestinations={[]}
+                                   onTrainTypeChange={() => {}} // Dummy handlers
+                                   onDestinationChange={() => {}}
+                               />
+                             )}
+                           </div>
+                         )}
+                      </li>
+                      ); // Close return statement for map
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      };
+      {/* --- End Current Journey Section Component Definition --- */}
+
   // Derive livery info directly from materieelnummer for the "Not In Service" case
   const notInServiceImageUrl = isNotInService ? getSpecialLiveryImageUrl(materieelnummer) : null;
   const notInServiceLiveryName = isNotInService ? getSpecialLiveryName(materieelnummer) : null;
@@ -397,6 +672,12 @@ export default function TrainInfoSearch() {
               </div>
            </div>
         </div>
+      )}
+
+
+      {/* Current Journey Section (Conditionally Rendered) */}
+      {!isLoading && !error && !isNotInService && stops.length > 0 && summary && (
+         <CurrentJourneySection stops={stops} />
       )}
 
       {/* Journey Card Display - Only show if stops are actually found AND not in the "Not In Service" state */}
