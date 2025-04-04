@@ -337,7 +337,7 @@ export default function TrainInfoSearch() {
             } else {
               // If response was OK, try to parse JSON
               try {
-                const data: { journeys: JourneyWithDetails[], disruptions: any[] } = JSON.parse(rawResponseText); // Expect JourneyWithDetails
+                const data: { journeys: JourneyWithDetails[], disruptions: unknown[] } = JSON.parse(rawResponseText); // Expect JourneyWithDetails
                 setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: null, departures: data.journeys || [] } }));
               } catch (parseError) {
                 console.error("Error parsing JSON response:", parseError);
