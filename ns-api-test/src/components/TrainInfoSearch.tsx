@@ -226,7 +226,7 @@ export default function TrainInfoSearch() {
     }
     // This effect should primarily react to the URL changing.
     // performSearch is stable due to useCallback.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Removed eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, performSearch]); // Removed materieelnummer from dependencies
 
 
@@ -536,7 +536,7 @@ export default function TrainInfoSearch() {
                                 onClick={(e) => { e.stopPropagation(); handleToggleClick(); }}
                                 disabled={transferInfo?.loading}
                                 className={`flex items-center ${buttonTextSize} ${buttonPadding} rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-blue-500`}
-                                aria-label={`${isVisible ? 'Hide' : 'Show'} transfers for ${stop.stop.name}`}
+                                aria-label={`${isVisible ? 'Hide' : 'Show'} transfers for ${stop.stop.name.replace("'", "&apos;")}`}
                                 aria-expanded={isVisible}
                             >
                                 {transferInfo?.loading ? 'Loading...' : 'Transfers'}
@@ -552,7 +552,7 @@ export default function TrainInfoSearch() {
                             onClick={(e) => { e.stopPropagation(); handleToggleClick(); }}
                             disabled={transferInfo?.loading}
                             className={`flex items-center justify-center w-full mt-4 ${buttonTextSize} ${buttonPadding} rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-blue-500`} // Added w-full, mt-4, justify-center
-                            aria-label={`${isVisible ? 'Hide' : 'Show'} transfers for ${stop.stop.name}`}
+                            aria-label={`${isVisible ? 'Hide' : 'Show'} transfers for ${stop.stop.name.replace("'", "&apos;")}`}
                             aria-expanded={isVisible}
                         >
                             {transferInfo?.loading ? 'Loading...' : 'Transfers'}
@@ -591,9 +591,9 @@ export default function TrainInfoSearch() {
                                             const ninetyMinutesInMillis = 90 * 60 * 1000;
 
                                             if (plannedArrivalTime && plannedArrivalTime.getTime() > now.getTime() + ninetyMinutesInMillis) {
-                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">Transfers only become visible 90 minutes before it's departure.</p>;
+                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">Transfers only become visible 90 minutes before arrival.</p>;
                                             } else {
-                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">No departures found. Please note that transfers only become visible 90 minutes before it's departure.</p>;
+                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">No departures found.</p>;
                                             }
                                         })()
                                     )}
