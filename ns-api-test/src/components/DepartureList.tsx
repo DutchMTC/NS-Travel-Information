@@ -25,6 +25,7 @@ interface JourneyWithDetails extends Journey {
   // Composition parts might have individual destinations (eindbestemming)
   composition: { length: number; parts: TrainUnit[]; destination?: string } | null;
   finalDestination?: string | null; // Destination fetched separately
+  // originPlannedDepartureTime is optional via Journey interface
 }
 
 // Interface for a single arrival or departure event at a stop
@@ -402,6 +403,22 @@ export default function JourneyList({
         const isExpanded = index === expandedIndex;
         const trainNumber = journey.product.number; // Get train number for fetching stops
 
+        // <<< START NEW CODE >>>
+        // Check if this is the first departure and its origin time is in the future
+        let isNextJourney = false;
+        if (index === 0 && listType === 'departures' && journey.originPlannedDepartureTime) {
+            try {
+                const originDeparture = new Date(journey.originPlannedDepartureTime);
+                const now = new Date();
+                if (originDeparture > now) {
+                    isNextJourney = true;
+                }
+            } catch (e) {
+                console.error("Error parsing origin departure time:", journey.originPlannedDepartureTime, e);
+            }
+        }
+        // <<< END NEW CODE >>>
+
         // Check for shortened journey warning
         let shortenedDestination = null;
         const warningMessagePrefix = "Rijdt niet verder dan ";
@@ -432,6 +449,15 @@ export default function JourneyList({
               <div className="flex-grow mr-4">
                 {/* Time + Delay */}
                 <div className="flex items-center flex-wrap mb-1"> {/* Added flex-wrap */}
+                  {/* <<< START MODIFICATION >>> */}
+                  {/* Add "Next Journey" badge if applicable */}
+                  {isNextJourney && (
+                      <span className="mr-2 px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 text-xs font-semibold rounded">
+                          Next Journey
+                      </span>
+                  )}
+                  {/* <<< END MODIFICATION >>> */}
+
                   {/* Planned Time (strikethrough if cancelled OR delayed) */}
                   <span className={`text-lg font-semibold ${ (journey.cancelled || delayMinutes > 0) ? 'line-through' : '' } ${ journey.cancelled ? 'text-red-600 dark:text-red-400' : 'text-blue-800 dark:text-blue-300' } mr-2`}>
                     {plannedTimeFormatted}

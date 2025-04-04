@@ -1,16 +1,25 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getDepartures, getArrivals, getTrainComposition, getJourneyDestination, getStationDisruptions, Journey, TrainUnit, Disruption } from '../../../../lib/ns-api'; // Add getStationDisruptions, Disruption
+// Import the new function and update Journey interface import
+import {
+    getDepartures,
+    getArrivals,
+    getTrainComposition,
+    getJourneyDestination,
+    getStationDisruptions,
+    getJourneyOriginDepartureTime, // <<< IMPORT NEW FUNCTION
+    Journey,
+    TrainUnit,
+    Disruption
+} from '../../../../lib/ns-api';
 
 // Force dynamic rendering, disable caching
 export const dynamic = 'force-dynamic';
 
-// Edge runtime removed to use standard serverless environment
-
-// Combined type for response
-// Combined type for response, including composition and final destination
+// Combined type for response, including composition, final destination, and origin time
 interface JourneyWithDetails extends Journey {
-  composition: { length: number; parts: TrainUnit[]; destination?: string } | null; // Include destination from composition
-  finalDestination?: string | null; // Destination fetched separately
+  composition: { length: number; parts: TrainUnit[]; destination?: string } | null;
+  finalDestination?: string | null;
+  // originPlannedDepartureTime is already optional in the base Journey interface
 }
 
 export async function GET(
@@ -32,7 +41,7 @@ export async function GET(
   if (type !== 'departures' && type !== 'arrivals') {
     return NextResponse.json({ error: 'Invalid type parameter. Use "departures" or "arrivals".' }, { status: 400 });
   }
-  
+
   // New response type including disruptions
   interface ApiResponse {
     journeys: JourneyWithDetails[];
@@ -54,6 +63,18 @@ export async function GET(
     ]);
 
     let journeysWithDetails: JourneyWithDetails[] = [];
+    let firstJourneyOriginTime: string | null = null; // <<< Variable to store origin time
+
+    // Fetch origin time only for the first departure if no offset is applied
+    if (type === 'departures' && !dateTime && baseJourneys.length > 0) {
+        try {
+            firstJourneyOriginTime = await getJourneyOriginDepartureTime(baseJourneys[0].product.number);
+            console.log(`[API Route] Fetched origin time for first departure (${baseJourneys[0].product.number}): ${firstJourneyOriginTime}`);
+        } catch (e) {
+            console.error(`[API Route] Failed to fetch origin time for first departure (${baseJourneys[0].product.number}):`, e);
+            // Continue without the origin time if fetching fails
+        }
+    }
 
     if (baseJourneys.length > 0) {
       // Fetch compositions and (only for arrivals) destinations in parallel
@@ -92,10 +113,14 @@ export async function GET(
               ? { length: compositionResult.length, parts: compositionResult.parts, destination: compositionResult.destination }
               : null;
 
+          // Add origin time only to the first journey object if fetched
+          const originTime = (index === 0 && firstJourneyOriginTime) ? firstJourneyOriginTime : undefined;
+
           return {
               ...j,
               composition: compositionData,
-              finalDestination: destinationResult, // Already null if type was 'departures'
+              finalDestination: destinationResult,
+              originPlannedDepartureTime: originTime, // <<< ADD ORIGIN TIME HERE
           };
       });
     }

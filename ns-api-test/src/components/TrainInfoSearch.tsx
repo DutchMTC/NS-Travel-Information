@@ -581,9 +581,23 @@ export default function TrainInfoSearch() {
                                     {transferInfo?.error && (
                                         <p className="text-xs text-red-400 dark:text-red-400 italic py-1">{transferInfo.error}</p>
                                     )}
+                                    {/* <<< START MODIFICATION >>> */}
                                     {!transferInfo?.error && !transferInfo?.loading && transferInfo?.departures.length === 0 && (
-                                        <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">No departures found.</p>
+                                        (() => {
+                                            // Use arrival time for the check, fallback to relevant event time if arrival missing
+                                            const plannedArrivalTimeString = stop.arrivals[0]?.plannedTime ?? relevantEvent.plannedTime;
+                                            const plannedArrivalTime = parseApiTime(plannedArrivalTimeString);
+                                            const now = getCurrentTime(); // Recalculate current time here
+                                            const ninetyMinutesInMillis = 90 * 60 * 1000;
+
+                                            if (plannedArrivalTime && plannedArrivalTime.getTime() > now.getTime() + ninetyMinutesInMillis) {
+                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">Transfers only become visible 90 minutes before it's departure.</p>;
+                                            } else {
+                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">No departures found. Please note that transfers only become visible 90 minutes before it's departure.</p>;
+                                            }
+                                        })()
                                     )}
+                                    {/* <<< END MODIFICATION >>> */}
                                     {transferInfo?.departures && transferInfo.departures.length > 0 && (
                                         <DepartureList
                                             journeys={transferInfo.departures}
@@ -608,9 +622,19 @@ export default function TrainInfoSearch() {
         // Need summary to display the header
         if (!summary) return null;
 
+        // Determine if the journey is in the future based on origin departure time
+        let isNextJourney = false;
+        const originDepartureTime = parseApiTime(summary.departureEvent?.plannedTime);
+        if (originDepartureTime && originDepartureTime > now) {
+            isNextJourney = true;
+        }
+
         return (
           <div className="mb-4"> {/* Add margin below this section */}
-            <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Current Journey</h2>
+            {/* Conditionally render heading */}
+            <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                {isNextJourney ? 'Next Journey' : 'Current Journey'}
+            </h2>
             {/* Main container with border/shadow */}
             <div className="border rounded-md shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
                 {/* Header Section - Styled like Latest Journey Header */}
