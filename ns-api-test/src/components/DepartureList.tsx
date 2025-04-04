@@ -176,7 +176,7 @@ export default function JourneyList({
   const getShortenedDestination = (journey: JourneyWithDetails): string | null => {
       const warningMessagePrefix = "Rijdt niet verder dan ";
       const warningMessage = journey.messages?.find(msg =>
-          msg.message.startsWith(warningMessagePrefix) && msg.style === 'WARNING'
+          msg.message.startsWith(warningMessagePrefix) // Removed style check
       );
       if (warningMessage) {
           let extractedName = warningMessage.message.substring(warningMessagePrefix.length).replace(/\[|\]/g, '');
@@ -406,7 +406,7 @@ export default function JourneyList({
         let shortenedDestination = null;
         const warningMessagePrefix = "Rijdt niet verder dan ";
         const warningMessage = journey.messages?.find(msg =>
-          msg.message.startsWith(warningMessagePrefix) && msg.style === 'WARNING'
+          msg.message.startsWith(warningMessagePrefix) // Removed style check
         );
 
         if (warningMessage) {
