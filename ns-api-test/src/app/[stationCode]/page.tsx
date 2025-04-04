@@ -4,6 +4,9 @@ import { stations } from '../../lib/stations';
 import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; // Import the client wrapper
 // import { AnimatedStationHeading } from '../../components/AnimatedStationHeading'; // Removed as heading is now in client component
 
+// Force dynamic rendering for the page to ensure searchParams are always fresh
+export const dynamic = 'force-dynamic';
+
 // Define base URL (consistent with layout.tsx)
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
@@ -50,10 +53,9 @@ export default async function StationPage(props: StationPageProps) {
 
   // Read initial offset from searchParams on the server
   const initialOffsetMinutes = parseInt(searchParams?.offsetM?.toString() || '0', 10);
-
   // No data fetching here, just render the client component responsible for fetching
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]"> {/* Removed plain-mode class */}
       <main className="max-w-4xl mx-auto p-4 sm:p-8">
         {/* StationSearch removed as functionality moved to main page */}
 

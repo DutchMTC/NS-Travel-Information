@@ -105,17 +105,23 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   }, [stationCode]);
 
   // Callbacks
-  const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string) => {
-    setIsLoading(true);
+  const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string, isBackgroundRefresh = false) => {
+    // Only show full loading state for initial load or explicit user action, not background refresh
+    if (!isBackgroundRefresh) {
+        setIsLoading(true);
+    }
     setError(null);
-    setJourneys([]);
-    setAllDisruptions([]);
-    setActiveDisruptions([]);
-    setActiveMaintenances([]);
+    // Don't clear existing data immediately on background refresh, wait for new data
+    if (!isBackgroundRefresh) {
+        setJourneys([]);
+        setAllDisruptions([]);
+        setActiveDisruptions([]);
+        setActiveMaintenances([]);
+    }
 
     try {
       const apiUrl = `/api/journeys/${stationCode}?type=${type}${dateTime ? `&dateTime=${encodeURIComponent(dateTime)}` : ''}`;
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, { cache: 'no-store' }); // Ensure no browser caching
       if (!response.ok) {
         let errorMsg = `Error fetching ${type}: ${response.status} ${response.statusText}`;
         try {
@@ -125,17 +131,25 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         throw new Error(errorMsg);
       }
       const data: ApiResponse = await response.json();
+      // Update state only if the component is still mounted and processing this request
+      // (Could add a check with an isMounted ref if needed, but usually okay for simple cases)
       setJourneys(data.journeys);
       setAllDisruptions(data.disruptions);
     } catch (err) {
       console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
-      setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
-      setJourneys([]);
-      setAllDisruptions([]);
+      // Don't clear data or set main error on background refresh errors, just log
+      if (!isBackgroundRefresh) {
+          setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
+          setJourneys([]); // Clear data on foreground error
+          setAllDisruptions([]);
+      } // else: keep potentially stale data visible instead of showing a full error state
     } finally {
-      setIsLoading(false);
+      // Only stop the main loading indicator if it wasn't a background refresh or if it's still loading
+       if (!isBackgroundRefresh || isLoading) {
+            setIsLoading(false);
+       }
     }
-  }, [stationCode]);
+  }, [stationCode]); // REMOVED isLoading dependency
 
   const handleTypeChange = (newType: JourneyType) => {
     setJourneyType(newType);
@@ -209,9 +223,11 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
    }, [offsetMinutes, debouncedOffsetMinutes, searchParams, router]); // Keep router.push for offset
 
   // Effect to read filters from URL on mount/navigation (handles back/forward)
+  // Effect to synchronize filter and offset UI state with URL parameters
   useEffect(() => {
       const params = new URLSearchParams(searchParams.toString());
-      // Update state only if it differs from URL to avoid unnecessary re-renders/loops
+
+      // Update filter state only if it differs from URL
       const urlTypes = params.get('types')?.split(',').filter(Boolean) || [];
       const urlDests = params.get('dest')?.split(',').filter(Boolean) || [];
 
@@ -221,18 +237,37 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       setSelectedDestinations(current =>
           JSON.stringify(current) !== JSON.stringify(urlDests) ? urlDests : current
       );
+
+      // Update offset UI state (offsetMinutes) from URL
+      const urlOffsetM = parseInt(params.get('offsetM') || '0', 10);
+      const validUrlOffset = isNaN(urlOffsetM) ? 0 : Math.max(0, urlOffsetM); // Ensure non-negative integer
+
+      setOffsetMinutes(current =>
+          current !== validUrlOffset ? validUrlOffset : current
+      );
+
+      // Note: We do NOT set debouncedOffsetMinutes here. That is handled by its own debouncing effect.
+      // This effect only syncs the immediate UI state (offsetMinutes) with the URL.
+
   }, [searchParams]); // Rerun if searchParams change
 
   // Fetch data when type or debounced offset changes
   useEffect(() => {
-    fetchAndSetJourneys(journeyType, targetDateTime);
+    // Calculate targetDateTime based on the current debouncedOffsetMinutes when the effect runs
+    const currentTargetDateTime = debouncedOffsetMinutes === 0
+        ? undefined
+        : formatDateTimeForApi(new Date(Date.now() + debouncedOffsetMinutes * 60000));
+
+    console.log(`Fetch effect running. Type: ${journeyType}, Debounced Offset: ${debouncedOffsetMinutes}, Target DateTime: ${currentTargetDateTime}`); // DEBUG LOG
+    fetchAndSetJourneys(journeyType, currentTargetDateTime);
+
     // Update document title to a generic one for station pages
     document.title = `Departures and Arrivals | Spoorwijzer`;
 
-    // Update display string (client-side only)
-    if (targetDateTime) {
+    // Update display string (client-side only) based on the calculated dateTime for this fetch
+    if (currentTargetDateTime) {
       try {
-        setDisplayDateTimeString(new Date(targetDateTime).toLocaleString());
+        setDisplayDateTimeString(new Date(currentTargetDateTime).toLocaleString());
       } catch (e) {
         console.error("Error creating locale date string:", e);
         setDisplayDateTimeString("Invalid Date");
@@ -240,7 +275,22 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
     } else {
       setDisplayDateTimeString(null);
     }
-  }, [journeyType, targetDateTime, fetchAndSetJourneys, stationName]); // targetDateTime depends on debouncedOffsetMinutes
+    // Depend on debouncedOffsetMinutes instead of targetDateTime
+  }, [journeyType, debouncedOffsetMinutes, fetchAndSetJourneys, stationName]);
+
+   // Effect for periodic background refresh
+   useEffect(() => {
+    const refreshInterval = 60000; // Refresh every 60 seconds
+
+    const intervalId = setInterval(() => {
+      console.log(`Background refreshing ${journeyType} for ${stationCode}...`);
+      // Fetch data in the background without setting the main loading state
+      fetchAndSetJourneys(journeyType, targetDateTime, true);
+    }, refreshInterval);
+
+    // Cleanup function to clear the interval when the component unmounts or dependencies change
+    return () => clearInterval(intervalId);
+  }, [journeyType, targetDateTime, fetchAndSetJourneys, stationCode]); // Re-create interval if these change
 
   // Process disruptions
   useEffect(() => {
@@ -279,7 +329,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       {/* Heading */}
       <AnimatedStationHeading stationName={stationName} />
       {debouncedOffsetMinutes > 0 && (
-        <p className="text-center text-sm text-muted-foreground -mt-2 mb-4">
+        <p className="text-center text-sm text-muted-foreground mb-4"> {/* Removed -mt-2 */}
           +{debouncedOffsetMinutes} min offset
         </p>
       )}

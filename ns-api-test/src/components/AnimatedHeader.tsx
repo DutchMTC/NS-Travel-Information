@@ -1,6 +1,7 @@
 "use client"; // Client component for framer-motion
 
-    import { useState } from 'react'; // Import useState
+    import { useState, Suspense } from 'react'; // Import useState and Suspense
+    import { useSearchParams } from 'next/navigation'; // Import useSearchParams
     import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
     import Link from 'next/link';
     import Image from 'next/image';
@@ -9,7 +10,17 @@
     import { ThemeToggleButton } from "./ThemeToggleButton";
     
     
-    export const AnimatedHeader = () => {
+    // Inner component to access searchParams safely within Suspense
+    const HeaderContent = () => {
+      const searchParams = useSearchParams();
+      const isPlainMode = searchParams.get('plain') === 'true';
+
+      // If plain mode is active, render nothing
+      if (isPlainMode) {
+        return null;
+      }
+
+      // Original header logic starts here if not in plain mode
       const { theme } = useTheme(); // Get current theme
       const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
@@ -93,5 +104,15 @@
             )}
           </AnimatePresence>
         </motion.header>
+      );
+    };
+
+    // Export a wrapper component that uses Suspense
+    export const AnimatedHeader = () => {
+      return (
+        // Suspense is needed because useSearchParams() suspends rendering
+        <Suspense fallback={null}> {/* Render nothing during suspense */}
+          <HeaderContent />
+        </Suspense>
       );
     };

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 // import { motion } from 'framer-motion'; // Removed motion import
+// import { motion } from 'framer-motion'; // Removed motion import
 import { Geist, Geist_Mono } from "next/font/google"; // Corrected font import name
 // import StationSearch from "../components/StationSearch"; // Moved to AnimatedHeader
 import { ThemeProvider } from "../components/ThemeProvider"; // Import ThemeProvider
 // import { ThemeToggleButton } from "../components/ThemeToggleButton"; // Moved to AnimatedHeader
 import { AnimatedHeader } from "../components/AnimatedHeader"; // Import the new header component
 import "./globals.css";
+
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -1,5 +1,8 @@
 "use client"; // Need client component for state and effects
 
+// Force dynamic rendering for the page to ensure searchParams are always fresh
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, Suspense } from 'react'; // Import useEffect and Suspense
 import { useRouter, useSearchParams } from 'next/navigation'; // Import hooks for routing and search params
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,6 +14,8 @@ import { stations } from '@/lib/stations'; // Import stations list
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Check for plain mode from searchParams (needed for conditional search bar)
+  const isPlainMode = searchParams.get('plain') === 'true';
   const [selectedStationCode, setSelectedStationCode] = useState<string | null>(null);
   const [selectedStationName, setSelectedStationName] = useState<string | null>(null);
 
@@ -28,7 +33,7 @@ function HomePageContent() {
   };
 
   return (
-    <div className="min-h-screen font-[family-name:var(--font-geist-sans)]"> {/* Removed bg-gray-50 */}
+    <div className="min-h-screen font-[family-name:var(--font-geist-sans)]"> {/* Removed plain-mode class */}
       <main className="max-w-4xl mx-auto p-4 sm:p-8">
 
         <AnimatePresence mode="wait"> {/* Use mode="wait" for smoother transition */}
@@ -47,9 +52,12 @@ function HomePageContent() {
               >
                 Departures and Arrivals
               </motion.h1>
-              <motion.div layout className="mb-8 flex justify-center">
-                 <StationSearch onStationSelect={handleStationSelect} />
-              </motion.div>
+              {/* Conditionally render search bar */}
+              {!isPlainMode && (
+                <motion.div layout className="mb-8 flex justify-center">
+                  <StationSearch onStationSelect={handleStationSelect} />
+                </motion.div>
+              )}
               <p>Please search for a station to view departure or arrival times.</p> {/* Placeholder text */}
             </motion.div>
           ) : (
@@ -58,10 +66,13 @@ function HomePageContent() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { duration: 0.5, delay: 0.2 } }} // Fade in after placeholder fades out
             >
-              {/* Search bar remains visible, but now outside the animating block */}
-              <motion.div layout className="mb-8 flex justify-center">
-                 <StationSearch onStationSelect={handleStationSelect} />
-              </motion.div>
+              {/* Conditionally render search bar */}
+              {!isPlainMode && (
+                <motion.div layout className="mb-8 flex justify-center">
+                  <StationSearch onStationSelect={handleStationSelect} />
+                </motion.div>
+              )}
+              {/* StationJourneyDisplay should be INSIDE the motion.div */}
               <StationJourneyDisplay
                 stationCode={selectedStationCode}
                 // Provide the required props
