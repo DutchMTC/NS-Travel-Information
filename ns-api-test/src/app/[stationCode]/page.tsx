@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'; // Import Metadata types
 import { stations } from '../../lib/stations';
-import StationSearch from '@/components/StationSearch'; // Import StationSearch
+// import StationSearch from '@/components/StationSearch'; // No longer needed here
 import { StationJourneyDisplay } from '../../components/StationJourneyDisplay'; // Import the client wrapper
 // import { AnimatedStationHeading } from '../../components/AnimatedStationHeading'; // Removed as heading is now in client component
+
+// Force dynamic rendering for the page to ensure searchParams are always fresh
+export const dynamic = 'force-dynamic';
 
 // Define base URL (consistent with layout.tsx)
 const siteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
@@ -20,13 +23,13 @@ export async function generateMetadata(props: StationPageProps): Promise<Metadat
   const params = await props.params;
   const stationCode = params.stationCode.toUpperCase();
   const station = stations.find(s => s.code.toUpperCase() === stationCode);
-  const stationName = station ? station.name : stationCode; // Fallback to code
+  const stationName = station ? station.name_long : stationCode; // Use name_long, fallback to code
 
   const title = stationName ? `${stationName} Departures & Arrivals` : 'Station Information';
   const description = `View live train departures and arrivals for ${stationName || 'this station'} in the Netherlands.`;
 
   return {
-    title: stationName || 'Station', // Sets the <title> tag
+    title: stationName || 'Station', // Use the potentially long name for the title tag
     description: description,
     openGraph: {
       title: title,
@@ -46,19 +49,15 @@ export default async function StationPage(props: StationPageProps) {
 
   // Find the station name from the imported list (synchronous operation)
   const station = stations.find(s => s.code.toUpperCase() === upperCaseStationCode);
-  const stationName = station ? station.name : upperCaseStationCode;
+  const stationName = station ? station.name_long : upperCaseStationCode; // Use name_long
 
   // Read initial offset from searchParams on the server
   const initialOffsetMinutes = parseInt(searchParams?.offsetM?.toString() || '0', 10);
-
   // No data fetching here, just render the client component responsible for fetching
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-[family-name:var(--font-geist-sans)]"> {/* Removed plain-mode class */}
       <main className="max-w-4xl mx-auto p-4 sm:p-8">
-        {/* Add StationSearch here */}
-        <div className="mb-8 flex justify-center">
-          <StationSearch />
-        </div>
+        {/* StationSearch removed as functionality moved to main page */}
 
         {/* Render the client component, passing necessary props */}
         <StationJourneyDisplay

@@ -48,6 +48,11 @@ export const specialLiveries: { [key: string]: SpecialLiveryDetails } = {
     name: "Ex. Kinderboekenweek Trein",
     imageUrl: "/assets/trains/KinderBoekenWeekICM.png" 
   },
+  "4011": {
+    name: "De eerste Koploper. Goodbye little friend <3",
+    imageUrl: "/assets/trains/KLMICM.png" 
+  },
+  
   
   // Add more special liveries here as needed
   // Example:

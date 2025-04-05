@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation'; // No longer needed
 import { stations, Station } from '../lib/stations';
 
-export default function StationSearch() {
+// Define props interface
+interface StationSearchProps {
+  onStationSelect: (stationCode: string) => void;
+}
+
+export default function StationSearch({ onStationSelect }: StationSearchProps) { // Destructure prop
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredStations, setFilteredStations] = useState<Station[]>([]);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const router = useRouter();
+  // const router = useRouter(); // No longer needed
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Update filtered stations based on search term
@@ -22,8 +27,9 @@ export default function StationSearch() {
     } else {
       const results = stations.filter(station => {
         const nameMatch = station.name.toLowerCase().includes(lowerCaseSearchTerm);
+        const nameLongMatch = station.name_long.toLowerCase().includes(lowerCaseSearchTerm); // Add long name match
         const codeMatch = station.code.toLowerCase().includes(lowerCaseSearchTerm);
-        return nameMatch || codeMatch;
+        return nameMatch || nameLongMatch || codeMatch; // Include long name in check
       });
       setFilteredStations(results);
       // Show dropdown only if there are results AND the input has focus (implicitly handled by isDropdownVisible state)
@@ -51,7 +57,8 @@ export default function StationSearch() {
   const handleStationSelect = (stationCode: string) => {
     setSearchTerm(''); // Clear search term
     setIsDropdownVisible(false); // Hide dropdown
-    router.push(`/${stationCode}`); // Navigate to station page
+    // router.push(`/${stationCode}`); // No longer navigate
+    onStationSelect(stationCode); // Call the callback prop instead
   };
 
   // Show dropdown with full list on focus if search is empty, or filtered list if not
@@ -87,7 +94,7 @@ export default function StationSearch() {
               onClick={() => handleStationSelect(station.code)}
               className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-gray-900 dark:text-gray-100 dark:hover:bg-gray-700"
             >
-              {station.name} <span className="text-xs text-gray-500 dark:text-gray-400">({station.code})</span>
+              {station.name_long} <span className="text-xs text-gray-500 dark:text-gray-400">({station.code})</span>
             </li>
           ))}
         </ul>

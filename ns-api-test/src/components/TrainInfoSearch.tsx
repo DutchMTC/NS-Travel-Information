@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react'; // Added useRef
 import Image from 'next/image';
 import { FaStar, FaChevronDown, FaArrowDown, FaExclamationTriangle } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'; // Import hooks
-import { formatTime, calculateDelay } from '../lib/utils';
+import { formatTime, calculateDelay, formatDateTimeForApi } from '../lib/utils'; // Import formatDateTimeForApi
 import { getSpecialLiveryName, getSpecialLiveryImageUrl } from '../lib/specialLiveries';
-
+import { Journey, TrainUnit } from '../lib/ns-api'; // Import Journey type and TrainUnit for transfer data
+import DepartureList from './DepartureList'; // Import DepartureList
+import { stations } from '../lib/stations'; // Import station data for lookup
 // --- Types ---
 interface StationInfo { name: string; lng: number; lat: number; countryCode: string; uicCode: string; }
 interface Product { number: string; categoryCode: string; shortCategoryName: string; longCategoryName: string; operatorCode: string; operatorName: string; type: string; }
@@ -23,11 +25,33 @@ interface Note {
   alternativeTransport?: boolean;
 }
 
+// Interface matching the structure returned by /api/journeys and expected by DepartureList
+interface JourneyWithDetails extends Journey {
+  // Composition parts might have individual destinations (eindbestemming)
+  composition: { length: number; parts: TrainUnit[]; destination?: string } | null;
+  finalDestination?: string | null; // Destination fetched separately
+}
+
 interface JourneyPayload {
     stops: Stop[];
     notes?: Note[];
     // Add other potential payload fields if needed
 }
+// --- End Types ---
+
+// --- Helper Functions ---
+const getCurrentTime = () => new Date();
+
+const parseApiTime = (timeString?: string): Date | null => {
+  if (!timeString) return null;
+  try {
+    return new Date(timeString);
+  } catch (e) {
+    console.error("Error parsing time:", timeString, e);
+    return null;
+  }
+};
+// --- End Helper Functions ---
 // --- End Types ---
 
 export default function TrainInfoSearch() {
@@ -45,6 +69,7 @@ export default function TrainInfoSearch() {
   const [error, setError] = useState<string | null>(null); // For generic errors like "Train not found"
   const [isExpanded, setIsExpanded] = useState(true); // Journey details expanded by default
   const [isNotInService, setIsNotInService] = useState(false); // Track if train exists but isn't running
+  const initialSearchDone = useRef(false); // Track initial search based on URL param
 
   // Function to perform the actual API fetch
   const performSearch = useCallback(async (mNum: string) => {
@@ -163,29 +188,46 @@ export default function TrainInfoSearch() {
       }
   };
 
-  // Effect to perform search when URL parameter changes (e.g., on initial load or back/forward)
+  // Ref to hold the current state value without adding it to effect dependencies
+  const materieelnummerRef = useRef(materieelnummer);
+  useEffect(() => {
+    materieelnummerRef.current = materieelnummer;
+  }, [materieelnummer]); // Keep this effect minimal just to update the ref
+
+  // Effect to sync FROM URL changes or perform initial load search
   useEffect(() => {
     const mNumFromUrl = searchParams.get('materieelnummer');
+
     if (mNumFromUrl) {
-        // Only update state and search if the URL param differs from current input state
-        // to avoid redundant searches when we update the URL ourselves in handleSearch/handleInputChange
-        if (mNumFromUrl !== materieelnummer) {
-            setMaterieelnummer(mNumFromUrl);
-            performSearch(mNumFromUrl);
-        }
+      // URL has a parameter
+      // Only update state and search if the URL param is different from the current state
+      // OR if this is the very first load (initialSearchDone is false)
+      if (mNumFromUrl !== materieelnummerRef.current || !initialSearchDone.current) {
+         // Check initialSearchDone flag *before* setting it true
+         const isInitial = !initialSearchDone.current;
+         setMaterieelnummer(mNumFromUrl); // Sync state FROM URL
+         // Only mark initial search done if it was truly the initial one based on URL
+         if (isInitial) {
+            initialSearchDone.current = true;
+         }
+         performSearch(mNumFromUrl); // Perform search based on URL value
+      }
     } else {
-        // If URL param is removed (e.g., by clearing input), clear results
-        if (materieelnummer !== '') {
-            setMaterieelnummer('');
-            setStops([]);
-            setError(null);
-            setNotes([]); // Clear notes when URL param is removed
-            setIsNotInService(false); // Clear not in service state
-        }
+      // URL does NOT have the parameter
+      // If the state currently has a value, clear it to sync FROM URL removal
+      if (materieelnummerRef.current !== '') {
+        setMaterieelnummer(''); // Clear state
+        setStops([]);
+        setError(null);
+        setNotes([]);
+        setIsNotInService(false);
+        initialSearchDone.current = false; // Reset flag as param is gone
+      }
     }
-    // Dependency array includes searchParams to react to URL changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+    // This effect should primarily react to the URL changing.
+    // performSearch is stable due to useCallback.
+    // Removed eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, performSearch]); // Removed materieelnummer from dependencies
 
 
   // Helper function to extract summary data for the header
@@ -256,6 +298,442 @@ export default function TrainInfoSearch() {
   };
 
   const summary = getJourneySummary(); // Will be null if no stops or specific train part not found
+
+      {/* --- Current Journey Section Component Definition --- */}
+      // Define the type for the summary prop based on the return type of getJourneySummary
+      type JourneySummaryType = ReturnType<typeof getJourneySummary>;
+      const CurrentJourneySection: React.FC<{ stops: Stop[]; summary: JourneySummaryType }> = ({ stops, summary }) => {
+        const [transferData, setTransferData] = useState<Record<string, { loading: boolean; error: string | null; departures: JourneyWithDetails[] }>>({}); // State for transfer data
+        const [upcomingTransfersVisible, setUpcomingTransfersVisible] = useState<Record<string, boolean>>({}); // State for upcoming stop transfer visibility
+
+        const fetchTransfers = async (stationUic: string, arrivalTimeString?: string) => { // Add arrivalTimeString parameter
+          if (!stationUic || transferData[stationUic]?.departures || transferData[stationUic]?.loading) {
+            return; // Don't fetch if already loaded, loading, or no UIC
+          }
+
+          // --- Find the short station code from the UIC ---
+          const station = stations.find(s => s.uic === stationUic);
+          if (!station) {
+              console.error(`[fetchTransfers] Could not find station code for UIC: ${stationUic}`);
+              setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: `Invalid station UIC: ${stationUic}`, departures: [] } }));
+              return;
+          }
+          const stationCode = station.code; // Use the short code for the API call
+          // --- End station code lookup ---
+
+          setTransferData(prev => ({ ...prev, [stationUic]: { loading: true, error: null, departures: [] } }));
+
+          // Modified try block to always log raw response text
+          let rawResponseText = '';
+          let responseOk = false;
+          try {
+            // --- Calculate target time for transfers ---
+            let targetDateTimeString: string | undefined = undefined;
+            if (arrivalTimeString) {
+                const arrivalTime = parseApiTime(arrivalTimeString);
+                if (arrivalTime) {
+                    arrivalTime.setMinutes(arrivalTime.getMinutes() + 3); // Add 3 minutes
+                    targetDateTimeString = formatDateTimeForApi(arrivalTime);
+                } else {
+                    console.warn(`[fetchTransfers] Could not parse arrival time: ${arrivalTimeString}`);
+                }
+            }
+            // --- End target time calculation ---
+
+            // Use the found stationCode and optional dateTime in the URL
+            const apiUrl = `/api/journeys/${stationCode}?type=departures${targetDateTimeString ? `&dateTime=${encodeURIComponent(targetDateTimeString)}` : ''}`;
+            console.log(`[Fetching Transfers URL] ${apiUrl}`); // Log the URL being fetched
+            const response = await fetch(apiUrl);
+            responseOk = response.ok; // Store status before reading body
+            rawResponseText = await response.text(); // Read as text first
+
+            // Log the raw response regardless of status
+            console.log(`[Raw API Response for ${stationUic} - Status: ${response.status}]`);
+            console.log(rawResponseText);
+
+            if (!responseOk) {
+              // Set error state based on the raw text if status is not OK
+              setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: `API Error ${response.status}: ${rawResponseText.substring(0, 100)}...`, departures: [] } }));
+            } else {
+              // If response was OK, try to parse JSON
+              try {
+                const data: { journeys: JourneyWithDetails[], disruptions: unknown[] } = JSON.parse(rawResponseText); // Expect JourneyWithDetails
+                setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: null, departures: data.journeys || [] } }));
+              } catch (parseError) {
+                console.error("Error parsing JSON response:", parseError);
+                setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: "Failed to parse API response.", departures: [] } }));
+              }
+            }
+          } catch (fetchErr) {
+            // Catch errors during the fetch itself (e.g., network error)
+            console.error("Network or fetch error fetching transfers:", fetchErr);
+            const message = fetchErr instanceof Error ? fetchErr.message : "Network error fetching transfers.";
+            setTransferData(prev => ({ ...prev, [stationUic]: { loading: false, error: message, departures: [] } }));
+          }
+        };
+
+
+        if (!stops || stops.length === 0) {
+          return null;
+        }
+
+        const now = getCurrentTime();
+        const finalStop = stops[stops.length - 1];
+        const finalArrivalEvent = finalStop?.arrivals[0];
+        // Use actualTime if available, otherwise plannedTime for final arrival check
+        const finalArrivalTime = parseApiTime(finalArrivalEvent?.actualTime ?? finalArrivalEvent?.plannedTime);
+
+        // Condition 1: Check if final arrival time is in the future
+        if (!finalArrivalTime || finalArrivalTime <= now) {
+          return null; // Don't render if journey is completed or final time invalid
+        }
+
+        // Condition 2: Determine Next Station and Upcoming Stops
+        let nextStopIndex = -1;
+        for (let i = 0; i < stops.length; i++) {
+          const stop = stops[i];
+          const arrivalEvent = stop.arrivals[0];
+          const departureEvent = stop.departures[0];
+
+          // Use actual times if available, fallback to planned
+          const arrivalTime = parseApiTime(arrivalEvent?.actualTime ?? arrivalEvent?.plannedTime);
+          const departureTime = parseApiTime(departureEvent?.actualTime ?? departureEvent?.plannedTime);
+
+
+          if (arrivalTime && now < arrivalTime) {
+            // Current time is before arrival at this stop -> this is the next stop
+            nextStopIndex = i;
+            break;
+          } else if (departureTime && arrivalTime && now >= arrivalTime && now < departureTime) {
+            // Current time is between arrival and departure at this stop -> the *following* stop is the next one
+            if (i + 1 < stops.length) {
+              nextStopIndex = i + 1;
+            } else {
+              // Train is at the last stop, but hasn't departed yet. No "next" stop.
+              nextStopIndex = -1; // Indicate no upcoming stops
+            }
+            break;
+          } else { // Note: This 'else' block becomes empty after removing the log, which is fine.
+          }
+          // If current time is after departureTime, continue loop
+        }
+
+         // If no next stop found (e.g., only final stop remains and arrival is in future)
+         if (nextStopIndex === -1 || nextStopIndex >= stops.length) {
+           return null; // Don't show section if only the final destination remains or is already reached/passed departure
+         }
+
+        const nextStop = stops[nextStopIndex];
+        // Filter upcoming stops to only include those with an arrival event (meaning the train actually stops)
+        const upcomingStops = stops.slice(nextStopIndex + 1).filter(stop => stop.arrivals && stop.arrivals.length > 0);
+
+        // Toggle visibility for an upcoming stop's transfers
+        const toggleUpcomingTransferVisibility = (uic: string) => {
+            setUpcomingTransfersVisible(prev => ({ ...prev, [uic]: !prev[uic] }));
+        };
+
+        // --- Reusable Stop Display Component Definition (Defined Inside) ---
+        const StopDisplay: React.FC<{
+            stop: Stop;
+            isNextStop?: boolean;
+            isFinalDestination: boolean;
+        }> = ({ stop, isNextStop = false, isFinalDestination }) => {
+            const uic = stop.stop.uicCode;
+            // We need UIC to show button and details, but can render basic info without it
+
+            // Determine the relevant event (arrival or departure) based on context
+            const relevantEvent = isFinalDestination || !isNextStop
+                ? stop.arrivals[0] // Use arrival for upcoming stops and the final destination
+                : stop.departures[0] || stop.arrivals[0]; // Use departure for next stop, fallback to arrival
+
+            if (!relevantEvent) return null; // Need an event to display time/track
+
+            const plannedTime = formatTime(relevantEvent.plannedTime);
+            const actualTime = relevantEvent.actualTime ? formatTime(relevantEvent.actualTime) : plannedTime;
+            const delayMinutes = calculateDelay(relevantEvent.plannedTime, relevantEvent.actualTime ?? relevantEvent.plannedTime);
+            const track = relevantEvent.actualTrack || relevantEvent.plannedTrack;
+            const isCancelled = relevantEvent.cancelled;
+
+            // Access state directly since component is defined inside
+            const isVisible = uic ? !!upcomingTransfersVisible[uic] : false;
+            const transferInfo = uic ? transferData[uic] : undefined;
+
+            const handleToggleClick = () => {
+                if (!uic) return; // Don't toggle if no UIC
+                toggleUpcomingTransferVisibility(uic);
+                // Fetch transfers based on arrival time when opening
+                const fetchBaseTime = stop.arrivals[0]?.actualTime ?? stop.arrivals[0]?.plannedTime;
+                if (!isVisible && !transferInfo?.departures && !transferInfo?.loading && fetchBaseTime) {
+                    fetchTransfers(uic, fetchBaseTime);
+                }
+            };
+
+            // Define colors
+            const plannedTimeColor = isCancelled ? 'text-red-400/80 dark:text-red-500/80' : 'text-blue-500 dark:text-blue-400';
+            const actualTimeColor = 'text-red-500 dark:text-red-400';
+            const stationNameColor = isCancelled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-100 dark:text-gray-100';
+            const platformColorClasses = relevantEvent.actualTrack && relevantEvent.plannedTrack && relevantEvent.actualTrack !== relevantEvent.plannedTrack
+                ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500'
+                : 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400';
+
+            // Define base sizes (mobile-first) and apply larger sizes conditionally with sm: prefix
+            // Define base sizes (mobile-first) and apply larger sizes conditionally with sm: prefix
+            // Base sizes for Next Stop are slightly larger than upcoming stops
+            const containerPadding = isNextStop ? `p-4 sm:p-6` : `p-3`; // Mobile: p-4, sm+: p-6 for next
+            const timeRowTextSize = isNextStop ? `text-base sm:text-2xl` : `text-sm`; // Mobile: text-base, sm+: text-2xl for next
+            const timeRowMargin = isNextStop ? `mb-1.5 sm:mb-3` : `mb-1`; // Mobile: mb-1.5, sm+: mb-3 for next
+            const platformSize = isNextStop ? `w-8 h-8 sm:w-12 sm:h-12` : `w-6 h-6`; // Mobile: w-8 h-8, sm+: w/h-12 for next
+            const platformTextSize = isNextStop ? `text-sm sm:text-xl` : `text-xs`; // Mobile: text-sm, sm+: text-xl for next
+            const platformMargin = isNextStop ? `mr-3 sm:mr-4` : `mr-2`; // Mobile: mr-3, sm+: mr-4 for next
+            const stationNameSize = isNextStop ? `text-lg sm:text-3xl` : `text-base`; // Mobile: text-lg, sm+: text-3xl for next
+            const stationNameWeight = isNextStop ? 'font-bold' : 'font-medium'; // Keep bold only for next stop
+            const buttonPadding = isNextStop ? `py-1.5 px-4 sm:py-2.5 sm:px-6` : `py-1 px-3`; // Mobile: py-1.5 px-4, sm+: py-2.5 px-6 for next
+            const buttonTextSize = isNextStop ? `text-base sm:text-xl` : `text-sm`; // Mobile: text-base, sm+: text-xl for next
+
+            return (
+                 // Add onClick to the main div, make it focusable and add cursor-pointer
+                 <div
+                    className={`${containerPadding} rounded-md ${isCancelled ? 'bg-gray-700/50 opacity-70' : 'bg-gray-800 dark:bg-slate-800'} ${uic ? 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50' : ''}`}
+                    onClick={uic ? handleToggleClick : undefined}
+                    role={uic ? "button" : undefined}
+                    tabIndex={uic ? 0 : undefined}
+                    onKeyDown={uic ? (e) => { if (e.key === 'Enter' || e.key === ' ') handleToggleClick(); } : undefined}
+                 >
+                    {/* Time Row */}
+                    <div className={`flex items-center ${timeRowTextSize} ${timeRowMargin}`}>
+                        <span className={`font-semibold ${plannedTimeColor} ${ (isCancelled || delayMinutes > 0) ? 'line-through' : '' }`}>
+                            {plannedTime}
+                        </span>
+                        {delayMinutes > 0 && !isCancelled && (
+                            <span className={`ml-2 font-semibold ${actualTimeColor}`}>
+                                {actualTime}
+                            </span>
+                        )}
+                        {delayMinutes > 0 && !isCancelled && (
+                            <span className={`ml-1 font-medium text-xs ${actualTimeColor}`}> {/* Keep delay text smaller */}
+                                (+{delayMinutes})
+                            </span>
+                        )}
+                        {isCancelled && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-red-600 text-white text-xs font-semibold rounded">
+                                Cancelled
+                            </span>
+                        )}
+                    </div>
+                    {/* Platform and Station Row */}
+                    <div className={`flex items-center ${!isNextStop ? 'justify-between' : ''}`}> {/* Conditionally justify */}
+                        <div className="flex items-center"> {/* Group platform and name */}
+                            <span className={`flex items-center justify-center ${platformSize} rounded border ${platformTextSize} font-semibold ${platformMargin} ${platformColorClasses}`}>
+                                {track ?? '?'}
+                            </span>
+                            <span className={`${stationNameWeight} ${stationNameSize} ${stationNameColor} ${isCancelled ? 'line-through' : ''}`}>
+                                {stop.stop.name}
+                            </span>
+                        </div>
+                        {/* Transfer Toggle Button (Inline for upcoming stops) */}
+                        {!isNextStop && uic && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleClick(); }}
+                                disabled={transferInfo?.loading}
+                                className={`flex items-center ${buttonTextSize} ${buttonPadding} rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-blue-500`}
+                                aria-label={`${isVisible ? 'Hide' : 'Show'} transfers for ${stop.stop.name.replace("'", "&apos;")}`}
+                                aria-expanded={isVisible}
+                            >
+                                {transferInfo?.loading ? 'Loading...' : 'Transfers'}
+                                <motion.div animate={{ rotate: isVisible ? 180 : 0 }} transition={{ duration: 0.2 }} className="ml-1.5">
+                                    <FaChevronDown className="h-3 w-3" />
+                                </motion.div>
+                            </button>
+                        )}
+                    </div>
+                    {/* Transfer Toggle Button (Full width for next stop) */}
+                    {isNextStop && uic && (
+                         <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleClick(); }}
+                            disabled={transferInfo?.loading}
+                            className={`flex items-center justify-center w-full mt-4 ${buttonTextSize} ${buttonPadding} rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-blue-500`} // Added w-full, mt-4, justify-center
+                            aria-label={`${isVisible ? 'Hide' : 'Show'} transfers for ${stop.stop.name.replace("'", "&apos;")}`}
+                            aria-expanded={isVisible}
+                        >
+                            {transferInfo?.loading ? 'Loading...' : 'Transfers'}
+                            <motion.div animate={{ rotate: isVisible ? 180 : 0 }} transition={{ duration: 0.2 }} className="ml-1.5">
+                                <FaChevronDown className="h-3 w-3" />
+                            </motion.div>
+                        </button>
+                    )}
+                    {/* Collapsible Transfer Data */}
+                    <AnimatePresence initial={false}>
+                        {isVisible && uic && (
+                            <motion.div
+                                key={`transfer-${uic}`}
+                                initial="collapsed"
+                                animate="open"
+                                exit="collapsed"
+                                variants={{
+                                    open: { opacity: 1, height: 'auto', marginTop: '12px' },
+                                    collapsed: { opacity: 0, height: 0, marginTop: '0px' }
+                                }}
+                                transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                                className="overflow-hidden border-t border-gray-600 dark:border-gray-700 pt-3 mt-3"
+                            >
+                                {/* Prevent clicks inside the details from closing it */}
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    {transferInfo?.error && (
+                                        <p className="text-xs text-red-400 dark:text-red-400 italic py-1">{transferInfo.error}</p>
+                                    )}
+                                    {/* <<< START MODIFICATION >>> */}
+                                    {!transferInfo?.error && !transferInfo?.loading && transferInfo?.departures.length === 0 && (
+                                        (() => {
+                                            // Use arrival time for the check, fallback to relevant event time if arrival missing
+                                            const plannedArrivalTimeString = stop.arrivals[0]?.plannedTime ?? relevantEvent.plannedTime;
+                                            const plannedArrivalTime = parseApiTime(plannedArrivalTimeString);
+                                            const now = getCurrentTime(); // Recalculate current time here
+                                            const ninetyMinutesInMillis = 90 * 60 * 1000;
+
+                                            if (plannedArrivalTime && plannedArrivalTime.getTime() > now.getTime() + ninetyMinutesInMillis) {
+                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">Transfers only become visible 90 minutes before arrival.</p>;
+                                            } else {
+                                                return <p className="text-xs text-gray-400 dark:text-gray-400 italic py-1">No departures found.</p>;
+                                            }
+                                        })()
+                                    )}
+                                    {/* <<< END MODIFICATION >>> */}
+                                    {transferInfo?.departures && transferInfo.departures.length > 0 && (
+                                        <DepartureList
+                                            journeys={transferInfo.departures}
+                                            listType="departures"
+                                            currentStationUic={uic}
+                                            showFilterPanel={false}
+                                            selectedTrainTypes={[]}
+                                            selectedDestinations={[]}
+                                            onTrainTypeChange={() => {}}
+                                            onDestinationChange={() => {}}
+                                        />
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            );
+        };
+        // --- End Reusable Stop Display Component Definition ---
+
+        // Need summary to display the header
+        if (!summary) return null;
+
+        // Determine if the journey is in the future based on origin departure time
+        let isNextJourney = false;
+        const originDepartureTime = parseApiTime(summary.departureEvent?.plannedTime);
+        if (originDepartureTime && originDepartureTime > now) {
+            isNextJourney = true;
+        }
+
+        return (
+          <div className="mb-4"> {/* Add margin below this section */}
+            {/* Conditionally render heading */}
+            <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">
+                {isNextJourney ? 'Next Journey' : 'Current Journey'}
+            </h2>
+            {/* Main container with border/shadow */}
+            <div className="border rounded-md shadow-sm dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
+                {/* Header Section - Styled like Latest Journey Header */}
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/30">
+                    {/* Adapted from Latest Journey Header (lines 796-853), removed button/chevron */}
+                    <div className="flex-grow text-left space-y-1">
+                        <div> {/* Wrap origin/dest in a div */}
+                            {/* Origin Row */}
+                            <div className="flex items-center">
+                                <span className={`font-semibold text-lg ${summary.isJourneyCancelled ? 'line-through text-red-700/80 dark:text-red-500/80' : 'text-gray-800 dark:text-gray-200'}`}>
+                                {summary.originStationName}
+                                </span>
+                                <span className={`ml-3 text-lg font-semibold ${ (summary.isJourneyCancelled || summary.departureDelayMinutes > 0) ? 'line-through' : '' } ${ summary.isJourneyCancelled ? 'text-red-600/80 dark:text-red-400/80' : 'text-blue-800 dark:text-blue-300' }`}>
+                                {summary.departurePlannedTimeFormatted}
+                                </span>
+                                {summary.departureDelayMinutes > 0 && !summary.isJourneyCancelled && (
+                                <span className="ml-1.5 text-lg font-semibold text-red-600 dark:text-red-400">
+                                    {summary.departureActualTimeFormatted}
+                                </span>
+                                )}
+                                {summary.departureDelayMinutes > 0 && !summary.isJourneyCancelled && (
+                                    <span className="ml-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    (+{summary.departureDelayMinutes} min)
+                                    </span>
+                                )}
+                            </div>
+                            {/* Down Arrow Separator */}
+                            <div className="flex my-1">
+                                <FaArrowDown className="text-gray-400 dark:text-gray-500" />
+                            </div>
+                            {/* Destination Row */}
+                            <div className="flex items-center">
+                                <span className={`font-semibold text-lg ${summary.isJourneyCancelled ? 'line-through text-red-700/80 dark:text-red-500/80' : 'text-gray-800 dark:text-gray-200'}`}>
+                                {summary.finalDestinationName}
+                                </span>
+                                <span className={`ml-3 text-lg font-semibold ${ (summary.isJourneyCancelled || summary.arrivalDelayMinutes > 0) ? 'line-through' : '' } ${ summary.isJourneyCancelled ? 'text-red-600/80 dark:text-red-400/80' : 'text-blue-800 dark:text-blue-300' }`}>
+                                {summary.arrivalPlannedTimeFormatted}
+                                </span>
+                                {summary.arrivalDelayMinutes > 0 && !summary.isJourneyCancelled && (
+                                <span className="ml-1.5 text-lg font-semibold text-red-600 dark:text-red-400">
+                                    {summary.arrivalActualTimeFormatted}
+                                </span>
+                                )}
+                                {summary.arrivalDelayMinutes > 0 && !summary.isJourneyCancelled && (
+                                    <span className="ml-1 text-sm font-medium text-red-600 dark:text-red-400">
+                                    (+{summary.arrivalDelayMinutes} min)
+                                    </span>
+                                )}
+                            </div>
+                            {/* Train Type / Cancelled */}
+                            <div className="pt-1">
+                                {summary.isJourneyCancelled ? (
+                                    <span className="px-2 py-0.5 bg-red-600 text-white text-sm font-semibold rounded">
+                                    Cancelled
+                                    </span>
+                                ) : (
+                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                    {summary.departureEvent.product.operatorName} {summary.departureEvent.product.shortCategoryName} {summary.departureEvent.product.number}
+                                    </span>
+                                )}
+                            </div>
+                        </div> {/* Close wrapper div */}
+                    </div>
+                </div> {/* Close Header Section */}
+
+                {/* Content Section (Next/Upcoming Stops) */}
+                <div className="p-4 space-y-3 bg-white dark:bg-slate-900"> {/* Restored original dark background */}
+                    {/* Next Station */}
+                    <div>
+                        <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-1">Next Station:</h3>
+                        <StopDisplay
+                            stop={nextStop}
+                            isNextStop={true}
+                            isFinalDestination={nextStopIndex === (stops.length - 1)}
+                        />
+                    </div>
+
+                    {/* Upcoming Stops */}
+                    {upcomingStops.length > 0 && (
+                        <div>
+                        <h3 className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-1">Upcoming Stops:</h3>
+                        <ul className="space-y-2">
+                            {upcomingStops.map((stop) => (
+                            <li key={stop.id}>
+                                <StopDisplay
+                                    stop={stop}
+                                    isFinalDestination={stop.status === 'DESTINATION'}
+                                />
+                            </li>
+                            ))}
+                        </ul>
+                        </div>
+                    )}
+                </div> {/* Close Content Section */}
+            </div> {/* Close Main container */}
+          </div>
+        );
+      };
+      {/* --- End Current Journey Section Component Definition --- */}
 
   // Derive livery info directly from materieelnummer for the "Not In Service" case
   const notInServiceImageUrl = isNotInService ? getSpecialLiveryImageUrl(materieelnummer) : null;
@@ -399,10 +877,17 @@ export default function TrainInfoSearch() {
         </div>
       )}
 
+
+      {/* Current Journey Section (Conditionally Rendered) */}
+      {/* Wrap the conditional rendering in curly braces */}
+      {!isLoading && !error && !isNotInService && stops.length > 0 && summary && (
+        <CurrentJourneySection stops={stops} summary={summary} /> /* Pass summary prop */
+      )}
+
       {/* Journey Card Display - Only show if stops are actually found AND not in the "Not In Service" state */}
       {!isLoading && !error && !isNotInService && stops.length > 0 && summary && (
         <> {/* Fragment to group heading and card */}
-          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Current Journey</h2>
+          <h2 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Latest Journey</h2>
           <div className="border rounded-md shadow-sm bg-white dark:bg-gray-800 dark:border-gray-700 overflow-hidden">
             {/* Card Header - Clickable */}
             <button

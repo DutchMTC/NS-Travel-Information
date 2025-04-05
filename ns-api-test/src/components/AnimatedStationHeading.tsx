@@ -12,7 +12,7 @@
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.25 }} // Stagger after header
-          className="text-3xl font-bold mb-6 text-center text-blue-900 dark:text-blue-300"
+          className="text-3xl font-bold text-center text-blue-900 dark:text-blue-300" // Removed mb-6
         >
           {stationName}
         </motion.h1>

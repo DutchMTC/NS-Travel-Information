@@ -35,6 +35,7 @@ export interface Journey {
   cancelled: boolean;
   routeStations: RouteStation[];
   messages?: DepartureMessage[];
+  originPlannedDepartureTime?: string; // <<< ADDED FIELD
   // Add other relevant fields if needed based on the API documentation or response
 }
 
@@ -107,6 +108,23 @@ interface JourneyStop {
     previousStopId: string[];
     nextStopId: string[];
     destination?: string; // Destination might be present here
+    // Add arrival/departure details within the stop object
+    arrival?: { // Make optional
+        plannedTime?: string;
+        actualTime?: string;
+        delayInSeconds?: number;
+        cancelled?: boolean;
+        plannedTrack?: string;
+        actualTrack?: string;
+    };
+    departure?: { // Make optional
+        plannedTime?: string;
+        actualTime?: string;
+        delayInSeconds?: number;
+        cancelled?: boolean;
+        plannedTrack?: string;
+        actualTrack?: string;
+    };
     // Add other potential fields like arrival/departure times if needed
 }
 
@@ -193,8 +211,8 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
             try {
                 errorBody = await response.text();
             } catch { /* Ignore, no need for 'e' variable */ }
-            console.error(`Error fetching NS ${type}: ${response.status} ${response.statusText}`, errorBody);
-            throw new Error(`Failed to fetch ${type}. Status: ${response.status}. ${errorBody}`);
+            console.error(`[ns-api.ts] Error fetching NS ${type} for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody); // More detailed log
+            throw new Error(`Failed to fetch ${type}. Status: ${response.status}. Body: ${errorBody}`); // Include body in thrown error
         }
 
         const data = await response.json();
@@ -386,6 +404,62 @@ export async function getJourneyDestination(trainNumber: string): Promise<string
     }
 }
 
+
+// --- Function to fetch Journey Origin Departure Time ---
+// Uses the /journey endpoint to find the planned departure time from the origin station
+export async function getJourneyOriginDepartureTime(trainNumber: string): Promise<string | null> {
+    const apiKey = process.env.NSR_API_KEY;
+
+    if (!apiKey) {
+        console.error("Error: NSR_API_KEY environment variable is not set for getJourneyOriginDepartureTime.");
+        return null;
+    }
+
+    const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/journey?train=${trainNumber}`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Ocp-Apim-Subscription-Key': apiKey,
+                'Accept': 'application/json',
+            },
+            cache: 'no-store', // Or appropriate caching
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                 console.warn(`Journey details not found for train ${trainNumber} (Status 404) when fetching origin time.`);
+                 return null;
+            }
+            const errorBody = await response.text();
+            console.error(`Error fetching journey details for train ${trainNumber} (origin time): ${response.status} ${response.statusText}`, errorBody);
+            return null;
+        }
+
+        const data: JourneyDetailsResponse = await response.json();
+
+        // The origin station is typically the *first* stop in the list
+        if (data.payload && Array.isArray(data.payload.stops) && data.payload.stops.length > 0) {
+            const originStop = data.payload.stops[0];
+            // Check if the departure object and its plannedTime exist
+            if (originStop.departure && originStop.departure.plannedTime) {
+                return originStop.departure.plannedTime; // Return the planned departure time ISO string
+            } else {
+                 console.warn(`Origin stop for train ${trainNumber} found, but missing departure.plannedTime.`);
+            }
+        } else {
+             console.warn(`Could not find stops array or it was empty for train ${trainNumber} when fetching origin time.`);
+        }
+
+        return null; // Origin departure time not found
+
+    } catch (error) {
+        console.error(`An error occurred while fetching journey details for train ${trainNumber} (origin time):`, error);
+        return null; // Return null on error
+    }
+}
+
 // --- Function to fetch Station Disruptions ---
 export async function getStationDisruptions(stationCode: string): Promise<Disruption[]> {
     const apiKey = process.env.NSR_API_KEY;
@@ -417,8 +491,9 @@ export async function getStationDisruptions(stationCode: string): Promise<Disrup
                  return []; // No disruptions is not an error
             }
             const errorBody = await response.text();
-            console.error(`Error fetching disruptions for station ${stationCode}: ${response.status} ${response.statusText}`, errorBody);
-            return []; // Return empty array on error
+            console.error(`[ns-api.ts] Error fetching NS disruptions for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody); // More detailed log
+            // Re-throw the error so Promise.all catches it properly in the API route
+            throw new Error(`Failed to fetch disruptions. Status: ${response.status}. Body: ${errorBody}`);
         }
 const data: Disruption[] = await response.json();
 // console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
@@ -429,7 +504,12 @@ return data; // Return all disruptions fetched
         return data; // Return all disruptions fetched
 
     } catch (error) {
-        console.error(`An error occurred while fetching disruptions for station ${stationCode}:`, error);
-        return []; // Return empty array on error
+        console.error(`[ns-api.ts] An error occurred while fetching or processing NS disruptions for station ${stationCode}:`, error); // More detailed log
+        // Re-throw the error so Promise.all catches it properly in the API route
+        if (error instanceof Error) {
+            throw error;
+        } else {
+            throw new Error(`An unknown error occurred during NS API request for disruptions.`);
+        }
     }
 }

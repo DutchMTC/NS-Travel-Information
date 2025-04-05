@@ -3,9 +3,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FaFilter } from 'react-icons/fa'; // Import Filter icon
 import { Journey, TrainUnit, Disruption } from '../lib/ns-api';
+import { stations as stationData } from '../lib/stations'; // Import station data
 import { formatDateTimeForApi } from '../lib/utils';
-import JourneyList from './DepartureList';
+import JourneyList from './DepartureList'; // Assuming JourneyListProps is defined inside or exported
 import { JourneyTypeSwitch } from './JourneyTypeSwitch';
 import TimeOffsetSettings from './TimeOffsetSettings';
 import { AnimatedStationHeading } from './AnimatedStationHeading';
@@ -42,6 +44,9 @@ interface ApiResponse {
   disruptions: Disruption[];
 }
 
+// Removed unused FilterCounts interface definition
+
+// Removed FilterStatus interface
 export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   stationCode,
   stationName,
@@ -63,10 +68,24 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   const [showMaintenances, setShowMaintenances] = useState(false);
   const [isOffsetPopoverOpen, setIsOffsetPopoverOpen] = useState(false);
   const [displayDateTimeString, setDisplayDateTimeString] = useState<string | null>(null);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  // Lifted filter state
+  const [selectedTrainTypes, setSelectedTrainTypes] = useState<string[]>(() => {
+      // Initialize from URL search params
+      const params = new URLSearchParams(searchParams.toString());
+      return params.get('types')?.split(',').filter(Boolean) || []; // Added filter(Boolean)
+  });
+  const [selectedDestinations, setSelectedDestinations] = useState<string[]>(() => {
+      // Initialize from URL search params
+      const params = new URLSearchParams(searchParams.toString());
+      return params.get('dest')?.split(',').filter(Boolean) || []; // Added filter(Boolean)
+  });
+  // Removed filterCounts state
 
   // Refs
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null); // Ref for filter button
 
   // Memos
   const targetDateTime = useMemo(() => {
@@ -78,18 +97,31 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
     return formatDateTimeForApi(now);
   }, [debouncedOffsetMinutes]);
 
+  const currentStationUic = useMemo(() => {
+    // Find the station object matching the stationCode (case-insensitive)
+    const station = stationData.find(s => s.code.toUpperCase() === stationCode.toUpperCase());
+    // Return the UIC code or the original stationCode as a fallback (though ideally it should always be found)
+    return station ? station.uic : stationCode;
+  }, [stationCode]);
+
   // Callbacks
-  const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string) => {
-    setIsLoading(true);
+  const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string, isBackgroundRefresh = false) => {
+    // Only show full loading state for initial load or explicit user action, not background refresh
+    if (!isBackgroundRefresh) {
+        setIsLoading(true);
+    }
     setError(null);
-    setJourneys([]);
-    setAllDisruptions([]);
-    setActiveDisruptions([]);
-    setActiveMaintenances([]);
+    // Don't clear existing data immediately on background refresh, wait for new data
+    if (!isBackgroundRefresh) {
+        setJourneys([]);
+        setAllDisruptions([]);
+        setActiveDisruptions([]);
+        setActiveMaintenances([]);
+    }
 
     try {
       const apiUrl = `/api/journeys/${stationCode}?type=${type}${dateTime ? `&dateTime=${encodeURIComponent(dateTime)}` : ''}`;
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, { cache: 'no-store' }); // Ensure no browser caching
       if (!response.ok) {
         let errorMsg = `Error fetching ${type}: ${response.status} ${response.statusText}`;
         try {
@@ -99,17 +131,26 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         throw new Error(errorMsg);
       }
       const data: ApiResponse = await response.json();
+      // Update state only if the component is still mounted and processing this request
+      // (Could add a check with an isMounted ref if needed, but usually okay for simple cases)
       setJourneys(data.journeys);
       setAllDisruptions(data.disruptions);
     } catch (err) {
       console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
-      setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
-      setJourneys([]);
-      setAllDisruptions([]);
+      // Don't clear data or set main error on background refresh errors, just log
+      if (!isBackgroundRefresh) {
+          setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
+          setJourneys([]); // Clear data on foreground error
+          setAllDisruptions([]);
+      } // else: keep potentially stale data visible instead of showing a full error state
     } finally {
-      setIsLoading(false);
+      // Only stop the main loading indicator if it wasn't a background refresh or if it's still loading
+       if (!isBackgroundRefresh || isLoading) {
+            setIsLoading(false);
+       }
     }
-  }, [stationCode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stationCode]); // isLoading deliberately omitted, see logic in finally block
 
   const handleTypeChange = (newType: JourneyType) => {
     setJourneyType(newType);
@@ -120,41 +161,114 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
     setOffsetMinutes(m); // Update immediate state only
   };
 
+  // Helper function to update URL without full page reload (using replace)
+  const updateUrlParams = useCallback((newParams: Record<string, string | null>) => {
+    const currentParams = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, value]) => {
+        if (value && value.length > 0) {
+            currentParams.set(key, value);
+        } else {
+            currentParams.delete(key);
+        }
+    });
+    const hash = window.location.hash;
+    // Use router.replace for filter changes to avoid polluting browser history
+    router.replace(`${window.location.pathname}?${currentParams.toString()}${hash}`, { scroll: false });
+  }, [searchParams, router]); // Added dependencies
+
+  // Handlers for filter changes (to be passed to JourneyList)
+  const handleTrainTypeChange = useCallback((type: string, checked: boolean) => {
+    setSelectedTrainTypes(prev => {
+        const newTypes = checked
+            ? [...prev, type]
+            : prev.filter(t => t !== type);
+        // Update URL
+        updateUrlParams({ types: newTypes.join(',') || null }); // Pass null if empty
+        return newTypes;
+    });
+  }, [updateUrlParams]); // Use updateUrlParams
+
+  const handleDestinationChange = useCallback((destination: string, add: boolean) => {
+    setSelectedDestinations(prev => {
+        const newDestinations = add
+            ? [...prev, destination]
+            : prev.filter(d => d !== destination);
+        // Update URL
+        updateUrlParams({ dest: newDestinations.join(',') || null }); // Pass null if empty
+        return newDestinations;
+    });
+  }, [updateUrlParams]); // Use updateUrlParams
+
   // Effects
   // Debounce offset changes for URL update and data fetching trigger
+  // Update URL for time offset changes (using router.push for history)
+   useEffect(() => {
+     const handler = setTimeout(() => {
+       if (offsetMinutes !== debouncedOffsetMinutes) {
+         setDebouncedOffsetMinutes(offsetMinutes);
+         // Use router.push for offset changes
+         const currentParams = new URLSearchParams(searchParams.toString());
+         if (offsetMinutes > 0) {
+             currentParams.set('offsetM', offsetMinutes.toString());
+         } else {
+             currentParams.delete('offsetM');
+         }
+         const hash = window.location.hash;
+         router.push(`${window.location.pathname}?${currentParams.toString()}${hash}`, { scroll: false });
+       }
+     }, 500); // 500ms delay
+
+     return () => {
+       clearTimeout(handler);
+     };
+   }, [offsetMinutes, debouncedOffsetMinutes, searchParams, router]); // Keep router.push for offset
+
+  // Effect to read filters from URL on mount/navigation (handles back/forward)
+  // Effect to synchronize filter and offset UI state with URL parameters
   useEffect(() => {
-    const handler = setTimeout(() => {
-      if (offsetMinutes !== debouncedOffsetMinutes) {
-        setDebouncedOffsetMinutes(offsetMinutes);
+      const params = new URLSearchParams(searchParams.toString());
 
-        // Update URL
-        const currentParams = new URLSearchParams(searchParams.toString());
-        currentParams.delete('offsetD'); // Clean up old params just in case
-        currentParams.delete('offsetH');
-        if (offsetMinutes > 0) {
-          currentParams.set('offsetM', offsetMinutes.toString());
-        } else {
-          currentParams.delete('offsetM');
-        }
-        const hash = window.location.hash;
-        router.push(`${window.location.pathname}?${currentParams.toString()}${hash}`, { scroll: false });
-      }
-    }, 500); // 500ms delay
+      // Update filter state only if it differs from URL
+      const urlTypes = params.get('types')?.split(',').filter(Boolean) || [];
+      const urlDests = params.get('dest')?.split(',').filter(Boolean) || [];
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [offsetMinutes, debouncedOffsetMinutes, searchParams, router]);
+      setSelectedTrainTypes(current =>
+          JSON.stringify(current) !== JSON.stringify(urlTypes) ? urlTypes : current
+      );
+      setSelectedDestinations(current =>
+          JSON.stringify(current) !== JSON.stringify(urlDests) ? urlDests : current
+      );
+
+      // Update offset UI state (offsetMinutes) from URL
+      const urlOffsetM = parseInt(params.get('offsetM') || '0', 10);
+      const validUrlOffset = isNaN(urlOffsetM) ? 0 : Math.max(0, urlOffsetM); // Ensure non-negative integer
+
+      setOffsetMinutes(current =>
+          current !== validUrlOffset ? validUrlOffset : current
+      );
+
+      // Note: We do NOT set debouncedOffsetMinutes here. That is handled by its own debouncing effect.
+      // This effect only syncs the immediate UI state (offsetMinutes) with the URL.
+
+  }, [searchParams]); // Rerun if searchParams change
 
   // Fetch data when type or debounced offset changes
   useEffect(() => {
-    fetchAndSetJourneys(journeyType, targetDateTime);
-    document.title = `${journeyType.charAt(0).toUpperCase() + journeyType.slice(1)} - ${stationName}`;
+    // Calculate targetDateTime based on the current debouncedOffsetMinutes when the effect runs
+    const currentTargetDateTime = debouncedOffsetMinutes === 0
+        ? undefined
+        : formatDateTimeForApi(new Date(Date.now() + debouncedOffsetMinutes * 60000));
 
-    // Update display string (client-side only)
-    if (targetDateTime) {
+    console.log(`Fetch effect running. Type: ${journeyType}, Debounced Offset: ${debouncedOffsetMinutes}, Target DateTime: ${currentTargetDateTime}`); // DEBUG LOG
+    fetchAndSetJourneys(journeyType, currentTargetDateTime);
+
+    // Update document title to a generic one for station pages
+    document.title = `Departures and Arrivals | Spoorwijzer`;
+
+    // Update display string (client-side only) based on the calculated dateTime for this fetch
+    if (currentTargetDateTime) {
       try {
-        setDisplayDateTimeString(new Date(targetDateTime).toLocaleString());
+        setDisplayDateTimeString(new Date(currentTargetDateTime).toLocaleString());
       } catch (e) {
         console.error("Error creating locale date string:", e);
         setDisplayDateTimeString("Invalid Date");
@@ -162,7 +276,22 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
     } else {
       setDisplayDateTimeString(null);
     }
-  }, [journeyType, targetDateTime, fetchAndSetJourneys, stationName]); // targetDateTime depends on debouncedOffsetMinutes
+    // Depend on debouncedOffsetMinutes instead of targetDateTime
+  }, [journeyType, debouncedOffsetMinutes, fetchAndSetJourneys, stationName]);
+
+   // Effect for periodic background refresh
+   useEffect(() => {
+    const refreshInterval = 60000; // Refresh every 60 seconds
+
+    const intervalId = setInterval(() => {
+      console.log(`Background refreshing ${journeyType} for ${stationCode}...`);
+      // Fetch data in the background without setting the main loading state
+      fetchAndSetJourneys(journeyType, targetDateTime, true);
+    }, refreshInterval);
+
+    // Cleanup function to clear the interval when the component unmounts or dependencies change
+    return () => clearInterval(intervalId);
+  }, [journeyType, targetDateTime, fetchAndSetJourneys, stationCode]); // Re-create interval if these change
 
   // Process disruptions
   useEffect(() => {
@@ -201,47 +330,73 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       {/* Heading */}
       <AnimatedStationHeading stationName={stationName} />
       {debouncedOffsetMinutes > 0 && (
-        <p className="text-center text-sm text-muted-foreground -mt-2 mb-4">
+        <p className="text-center text-sm text-muted-foreground mb-4"> {/* Removed -mt-2 */}
           +{debouncedOffsetMinutes} min offset
         </p>
       )}
 
-      {/* Controls */}
+      {/* Controls (Stacked Vertically) */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
-        className="mb-6 flex justify-center items-center gap-4"
+        className="mt-6 mb-6 flex flex-col items-center gap-3" // Added mt-6, Stack vertically, add gap
       >
-        <JourneyTypeSwitch currentType={journeyType} onChange={handleTypeChange} />
-        <div className="relative" ref={popoverRef}>
-          <button
-            ref={triggerRef}
-            type="button"
-            onClick={() => setIsOffsetPopoverOpen(!isOffsetPopoverOpen)}
-            className="p-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md inline-flex items-center justify-center"
-            aria-label="Set time offset"
-            aria-expanded={isOffsetPopoverOpen}
-          >
-            <ClockIcon className="h-5 w-5" />
-          </button>
-          <AnimatePresence>
-            {isOffsetPopoverOpen && (
-              <motion.div
-                key="time-offset-popover"
-                initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                transition={{ duration: 0.2 }}
-                className="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-popover text-popover-foreground border p-0 right-0 origin-top-right"
+        {/* Journey Type Switch (Centered) */}
+        <div className="flex justify-center">
+            <JourneyTypeSwitch currentType={journeyType} onChange={handleTypeChange} />
+        </div>
+
+        {/* Filter & Time Offset Buttons (Row below switch) */}
+        <div className="flex justify-center items-center gap-2 sm:gap-4">
+            {/* Filter Button & Indicators */}
+            <div className="flex items-center gap-1">
+                {/* Filter Toggle Button */}
+                <button
+                    ref={filterTriggerRef}
+                    onClick={() => setShowFilterPanel(!showFilterPanel)}
+                    className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+                    aria-expanded={showFilterPanel}
+                    aria-controls="filter-options" // Make sure this ID matches the one in JourneyList
+                >
+                    <FaFilter className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                    Filter ({selectedTrainTypes.length > 0 || selectedDestinations.length > 0 ? `${selectedTrainTypes.length}T/${selectedDestinations.length}D` : 'None'}) {/* Use state lengths directly */}
+                </button>
+            </div>
+
+            {/* Time Offset Button & Popover */}
+            <div className="relative">
+              <button
+                ref={triggerRef}
+                type="button"
+                onClick={() => setIsOffsetPopoverOpen(!isOffsetPopoverOpen)}
+                // Apply similar styling as Filter button
+                className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+                aria-label="Set time offset"
+                aria-expanded={isOffsetPopoverOpen}
               >
-                <TimeOffsetSettings
-                  offsetMinutes={offsetMinutes} // Pass immediate value to input
-                  onOffsetChange={handleOffsetChange}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <ClockIcon className="h-5 w-5" />
+              </button>
+              <AnimatePresence>
+                {isOffsetPopoverOpen && (
+                  <motion.div
+                    key="time-offset-popover"
+                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                    transition={{ duration: 0.2 }}
+                    // Use popoverRef here for click outside logic
+                    ref={popoverRef}
+                    className="absolute z-10 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 p-0 right-0 origin-top-right" // Match button background, adjust border
+                  >
+                    <TimeOffsetSettings
+                      offsetMinutes={offsetMinutes}
+                      onOffsetChange={handleOffsetChange}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
         </div>
       </motion.div>
 
@@ -388,8 +543,19 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
 
       {/* Journey List */}
       {!isLoading && !error && journeys.length > 0 && (
-        <JourneyList journeys={journeys} listType={journeyType} />
+        <JourneyList
+            journeys={journeys}
+            listType={journeyType}
+            currentStationUic={currentStationUic}
+            showFilterPanel={showFilterPanel}
+            // Pass down filter state and handlers
+            selectedTrainTypes={selectedTrainTypes}
+            selectedDestinations={selectedDestinations}
+            onTrainTypeChange={handleTrainTypeChange}
+            onDestinationChange={handleDestinationChange}
+        />
       )}
+
     </motion.div>
   );
 };
