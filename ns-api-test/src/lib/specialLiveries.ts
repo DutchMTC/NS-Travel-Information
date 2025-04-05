@@ -33,7 +33,7 @@ export const specialLiveries: { [key: string]: SpecialLiveryDetails } = {
   "9549": {
     name: "Lekker lezen doe je in de trein",
   },
-  "9595": {
+  "9592": {
     name: "Lekker lezen doe je in de trein",
   },
   "4201": {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'; // Removed useId as it wasn't used
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaFilter } from 'react-icons/fa'; // Import Filter icon
@@ -52,6 +52,19 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   stationName,
   initialOffsetMinutes,
 }) => {
+  // Define station lookup maps (outside component rendering logic for performance)
+  const stationCodeToNameMap = useMemo(() => new Map(stationData.map(s => [s.code.toUpperCase(), s.name])), []);
+  const stationNameToLongNameMap = useMemo(() => new Map(stationData.map(s => [s.name.toUpperCase(), s.name_long])), []);
+  const stationShortNameToLongNameMap = useMemo(() => new Map(stationData.map(s => [s.name_short.toUpperCase(), s.name_long])), []);
+
+  // Helper to find name_long, trying different name fields
+  const getStationLongName = useCallback((name: string): string => {
+      if (!name) return 'Unknown'; // Handle null/undefined input
+      const upperName = name.toUpperCase();
+      return stationNameToLongNameMap.get(upperName)
+          || stationShortNameToLongNameMap.get(upperName)
+          || name; // Fallback to original name if not found
+  }, [stationNameToLongNameMap, stationShortNameToLongNameMap]); // Depends on the maps
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -81,6 +94,8 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       return params.get('dest')?.split(',').filter(Boolean) || []; // Added filter(Boolean)
   });
   // Removed filterCounts state
+  const [destinationSearchQuery, setDestinationSearchQuery] = useState<string>(''); // State for filter search
+  const [isDestinationSearchFocused, setIsDestinationSearchFocused] = useState(false); // State for filter search focus
 
   // Refs
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -104,20 +119,82 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
     return station ? station.uic : stationCode;
   }, [stationCode]);
 
+  // Calculate unique train types and potential destinations based on the *unfiltered* journeys
+  const uniqueTrainTypes = useMemo(() => {
+    const types = new Set(journeys.map(j => j.product.shortCategoryName));
+    return Array.from(types).sort();
+  }, [journeys]);
+
+  // Helper function to get the effective destination, now defined within StationJourneyDisplay
+  const getEffectiveDestination = useCallback((journey: JourneyWithDetails): string | null => {
+      const warningMessagePrefix = "Rijdt niet verder dan ";
+      const warningMessage = journey.messages?.find(msg =>
+          msg.message.startsWith(warningMessagePrefix)
+      );
+      if (warningMessage) {
+          let extractedName = warningMessage.message.substring(warningMessagePrefix.length).replace(/\[|\]/g, '');
+          const doorIndex = extractedName.indexOf(" door ");
+          if (doorIndex !== -1) {
+              extractedName = extractedName.substring(0, doorIndex).trim();
+          }
+          // Use the helper defined above to get the long name
+          return getStationLongName(extractedName);
+      }
+      // Use direction for departures, finalDestination for arrivals
+      // Access journeyType state directly here
+      const baseDest = journeyType === 'departures' ? journey.direction : (journey.finalDestination || null); // Removed journey.composition?.destination
+      // Apply getStationLongName for consistency
+      return baseDest ? getStationLongName(baseDest) : null;
+  }, [journeyType, getStationLongName]); // Add journeyType and getStationLongName to dependencies
+
+  const potentialDestinations = useMemo(() => {
+    const destinations = new Set<string>();
+    journeys.forEach(journey => {
+        const dest = getEffectiveDestination(journey);
+        if (dest) {
+            destinations.add(dest);
+        }
+    });
+    return Array.from(destinations).sort();
+  }, [journeys, getEffectiveDestination]); // Depends on journeys and the helper
+
+  // Filter journeys based on selected types AND selected destinations
+  // This logic now resides in the parent component
+  const filteredJourneys = useMemo(() => {
+    return journeys.filter(journey => {
+      // Check train type filter
+      const typeMatch = selectedTrainTypes.length === 0 || selectedTrainTypes.includes(journey.product.shortCategoryName);
+      if (!typeMatch) return false;
+
+      // Check destination filter (if any destinations are selected)
+      if (selectedDestinations.length > 0) {
+          const journeyDest = getEffectiveDestination(journey); // Use the helper
+
+          // If journey has no destination or doesn't match any selected, exclude it
+          if (!journeyDest || !selectedDestinations.includes(journeyDest)) {
+              return false;
+          }
+      }
+
+      // If passed both filters (or filters not active), include the journey
+      return true;
+    });
+  }, [journeys, selectedTrainTypes, selectedDestinations, getEffectiveDestination]); // Correct dependencies
+
   // Callbacks
   const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string, isBackgroundRefresh = false) => {
+    // --- Strict Refresh: Purge existing data before fetching ---
+    setJourneys([]);
+    setAllDisruptions([]);
+    setActiveDisruptions([]);
+    setActiveMaintenances([]);
+    setError(null); // Reset error state as well
+
     // Only show full loading state for initial load or explicit user action, not background refresh
     if (!isBackgroundRefresh) {
         setIsLoading(true);
     }
-    setError(null);
-    // Don't clear existing data immediately on background refresh, wait for new data
-    if (!isBackgroundRefresh) {
-        setJourneys([]);
-        setAllDisruptions([]);
-        setActiveDisruptions([]);
-        setActiveMaintenances([]);
-    }
+    // --- End Strict Refresh ---
 
     try {
       const apiUrl = `/api/journeys/${stationCode}?type=${type}${dateTime ? `&dateTime=${encodeURIComponent(dateTime)}` : ''}`;
@@ -405,6 +482,109 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
         <p className="text-center text-gray-600 dark:text-gray-400 mt-4">Loading {journeyType}{displayDateTimeString ? ` for ${displayDateTimeString}` : ''}...</p>
       )}
 
+      {/* Filter Panel (Moved Here) */}
+      <AnimatePresence>
+        {showFilterPanel && (
+          <motion.div
+            id="filter-options" // Keep ID for aria-controls
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="mb-4 p-4 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-sm"
+          >
+            {/* Train Type Filter */}
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+                <h3 className="text-md font-semibold mb-3 text-gray-800 dark:text-gray-200">Filter by Train Type</h3>
+                <div className="flex flex-col gap-y-2">
+                {uniqueTrainTypes.map(type => (
+                    <div key={type} className="flex items-center space-x-2">
+                    <input
+                        type="checkbox"
+                        id={`filter-type-${type}`}
+                        checked={selectedTrainTypes.includes(type)}
+                        onChange={(e) => handleTrainTypeChange(type, e.target.checked)} // Use handler from this component
+                        aria-label={`Filter by ${type}`}
+                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 dark:ring-offset-gray-800 cursor-pointer"
+                    />
+                    <label htmlFor={`filter-type-${type}`} className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                        {type}
+                    </label>
+                    </div>
+                ))}
+                </div>
+            </div>
+            {/* Destination Filter */}
+            <div className="relative">
+               <h3 className="text-md font-semibold mb-3 text-gray-800 dark:text-gray-200">Filter by Final Destination</h3>
+               <input
+                   type="text"
+                   placeholder="Search destinations..."
+                   value={destinationSearchQuery}
+                   onChange={(e) => setDestinationSearchQuery(e.target.value)}
+                   onFocus={() => setIsDestinationSearchFocused(true)}
+                   onBlur={() => { setTimeout(() => setIsDestinationSearchFocused(false), 150); }}
+                   className="block w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                   disabled={potentialDestinations.length === 0}
+               />
+               {(isDestinationSearchFocused || destinationSearchQuery) && potentialDestinations.length > 0 && (
+                   <ul className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg py-1">
+                       {(() => {
+                           const matchingDestinations = potentialDestinations
+                               .filter(dest => dest.toLowerCase().includes(destinationSearchQuery.toLowerCase()))
+                               .filter(dest => !selectedDestinations.includes(dest));
+
+                           if (matchingDestinations.length === 0) {
+                               return <li className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 italic">No matching destinations found.</li>;
+                           }
+
+                           return matchingDestinations.map(dest => (
+                               <li
+                                   key={dest}
+                                   onClick={() => {
+                                       handleDestinationChange(dest, true); // Use handler from this component
+                                       setDestinationSearchQuery('');
+                                   }}
+                                   className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
+                               >
+                                   {dest}
+                               </li>
+                           ));
+                       })()}
+                   </ul>
+               )}
+               {/* Selected Destination Tags */}
+               <div className="mt-3 flex flex-wrap gap-2 min-h-[2rem]">
+                   {selectedDestinations.map(dest => (
+                       <span key={dest} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 shadow-sm">
+                           {dest}
+                           <button
+                               type="button"
+                               onClick={() => handleDestinationChange(dest, false)} // Use handler from this component
+                               className="ml-1.5 flex-shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full text-green-500 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800 hover:text-green-600 dark:hover:text-green-100 focus:outline-none focus:bg-green-500 focus:text-white transition-colors"
+                               aria-label={`Remove ${dest} filter`}
+                           >
+                               <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
+                                   <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
+                               </svg>
+                           </button>
+                       </span>
+                   ))}
+                   {selectedDestinations.length === 0 && !destinationSearchQuery && (
+                       <>
+                           {potentialDestinations.length === 0 ? (
+                               <p className="text-xs text-gray-500 dark:text-gray-400 italic">No destinations found.</p>
+                           ) : (
+                               <p className="text-xs text-gray-500 dark:text-gray-400 italic">Search or select a destination.</p>
+                           )}
+                       </>
+                   )}
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Disruptions Section */}
       {!isLoading && !error && activeDisruptions.length > 0 && (
         <div className="my-4 p-4 bg-red-100 border border-red-300 text-red-800 rounded-md dark:bg-red-900/30 dark:border-red-700/50 dark:text-red-300">
@@ -544,11 +724,11 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       {/* Journey List */}
       {!isLoading && !error && journeys.length > 0 && (
         <JourneyList
-            journeys={journeys}
+            journeys={filteredJourneys} // Pass the FILTERED journeys array
             listType={journeyType}
             currentStationUic={currentStationUic}
-            showFilterPanel={showFilterPanel}
-            // Pass down filter state and handlers
+            // showFilterPanel prop removed
+            // Pass down filter state and handlers (still needed by JourneyList for display/logic)
             selectedTrainTypes={selectedTrainTypes}
             selectedDestinations={selectedDestinations}
             onTrainTypeChange={handleTrainTypeChange}

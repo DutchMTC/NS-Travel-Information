@@ -8,7 +8,7 @@ import { FaLongArrowAltRight, FaStar } from 'react-icons/fa'; // Removed unused 
 import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
 import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
-import { stations } from '../lib/stations'; // Import stations data
+import { stations, Station } from '../lib/stations'; // Import stations data AND Station interface
 import { getSpecialLiveryName, getSpecialLiveryImageUrl } from '../lib/specialLiveries'; // Import special livery data and image getter
 // Removed Shadcn UI imports
 
@@ -61,7 +61,7 @@ interface JourneyListProps {
   journeys: JourneyWithDetails[];
   listType: 'departures' | 'arrivals';
   currentStationUic: string;
-  showFilterPanel: boolean;
+  // showFilterPanel prop removed, handled by parent
   // Filter state and handlers are now controlled by parent
   selectedTrainTypes: string[];
   selectedDestinations: string[];
@@ -111,12 +111,22 @@ const detailsVariants = {
 // Create a lookup map for station codes to names for efficient access
 // Create a lookup map for station codes (converted to uppercase) to names
 const stationCodeToNameMap = new Map(stations.map(s => [s.code.toUpperCase(), s.name]));
+const stationNameToLongNameMap = new Map(stations.map(s => [s.name.toUpperCase(), s.name_long])); // Map for name -> name_long
+const stationShortNameToLongNameMap = new Map(stations.map(s => [s.name_short.toUpperCase(), s.name_long])); // Map for name_short -> name_long
+
+// Helper to find name_long, trying different name fields
+const getStationLongName = (name: string): string => {
+    const upperName = name.toUpperCase();
+    return stationNameToLongNameMap.get(upperName)
+        || stationShortNameToLongNameMap.get(upperName)
+        || name; // Fallback to original name if not found
+};
 
 export default function JourneyList({
     journeys,
     listType,
     currentStationUic,
-    showFilterPanel,
+    // showFilterPanel prop removed
     // Receive filter state and callbacks from props
     selectedTrainTypes,
     selectedDestinations,
@@ -267,121 +277,7 @@ export default function JourneyList({
     <div> {/* Main wrapper */}
       {/* Filter Button and Indicators are now rendered in the parent component */}
 
-      {/* Filter Options Area */}
-      <AnimatePresence>
-        {showFilterPanel && ( // Use prop to control visibility
-          <motion.div
-            id="filter-options"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="mb-4 p-4 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-sm" // Removed overflow-hidden
-          >
-            <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4"> {/* Section border */}
-                <h3 className="text-md font-semibold mb-3 text-gray-800 dark:text-gray-200">Filter by Train Type</h3>
-                <div className="flex flex-col gap-y-2"> {/* Changed from grid to flex-col */}
-                {uniqueTrainTypes.map(type => (
-                    <div key={type} className="flex items-center space-x-2">
-                    <input
-                        type="checkbox"
-                        id={`filter-type-${type}`} // Unique ID prefix
-                        checked={selectedTrainTypes.includes(type)}
-                        onChange={(e) => handleTrainTypeChange(type, e.target.checked)}
-                        aria-label={`Filter by ${type}`}
-                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:focus:ring-blue-600 dark:ring-offset-gray-800 cursor-pointer"
-                    />
-                    <label htmlFor={`filter-type-${type}`} className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none"> {/* Added select-none */}
-                        {type}
-                    </label>
-                    </div>
-                ))}
-                </div>
-            </div>
-           {/* --- Stop Filter --- */}
-           <div className="relative"> {/* Section container */}
-               <h3 className="text-md font-semibold mb-3 text-gray-800 dark:text-gray-200">Filter by Final Destination</h3>
-
-               {/* Search Input */}
-               <input
-                   type="text"
-                   placeholder="Search destinations..." // Updated placeholder
-                   value={destinationSearchQuery}
-                   onChange={(e) => setDestinationSearchQuery(e.target.value)}
-                   onFocus={() => setIsDestinationSearchFocused(true)}
-                   onBlur={() => {
-                       // Delay blur slightly to allow click on dropdown item
-                       setTimeout(() => setIsDestinationSearchFocused(false), 150);
-                   }}
-                   className="block w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                   disabled={potentialDestinations.length === 0}
-               />
-
-               {/* Search Results Dropdown (show on focus or when typing, if results exist) */}
-               {(isDestinationSearchFocused || destinationSearchQuery) && potentialDestinations.length > 0 && (
-                   <ul className="absolute z-10 w-full mt-1 max-h-48 overflow-y-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg py-1">
-                       {(() => { // IIFE to manage search results logic
-                           const matchingDestinations = potentialDestinations
-                               .filter(dest => dest.toLowerCase().includes(destinationSearchQuery.toLowerCase()))
-                               .filter(dest => !selectedDestinations.includes(dest)); // Exclude already selected
-
-                           if (matchingDestinations.length === 0) {
-                               return <li className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 italic">No matching destinations found.</li>;
-                           }
-
-                           return matchingDestinations.map(dest => (
-                               <li
-                                   key={dest}
-                                   onClick={() => {
-                                       handleAddDestinationFilter(dest); // Use correct handler
-                                       setDestinationSearchQuery(''); // Clear search on selection
-                                   }}
-                                   className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
-                               >
-                                   {dest}
-                               </li>
-                           ));
-                       })()}
-                   </ul>
-               )}
-
-               {/* Selected Destination Tags */}
-               <div className="mt-3 flex flex-wrap gap-2 min-h-[2rem]"> {/* Ensure space for messages */}
-                   {selectedDestinations.map(dest => (
-                       <span key={dest} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 shadow-sm"> {/* Changed color */}
-                           {dest}
-                           <button
-                               type="button"
-                               onClick={() => handleRemoveDestinationFilter(dest)} // Use correct handler
-                               className="ml-1.5 flex-shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full text-green-500 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800 hover:text-green-600 dark:hover:text-green-100 focus:outline-none focus:bg-green-500 focus:text-white transition-colors" // Changed color
-                               aria-label={`Remove ${dest} filter`}
-                           >
-                               <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
-                                   <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
-                               </svg>
-                           </button>
-                       </span>
-                   ))}
-                   {/* Informational Message - Show only if no destinations are selected and not currently searching */}
-                   {selectedDestinations.length === 0 && !destinationSearchQuery && (
-                       <>
-                           {potentialDestinations.length === 0 ? (
-                               <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                   No destinations found in the current list.
-                               </p>
-                           ) : (
-                               <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                                   Search or select a destination above.
-                               </p>
-                           )}
-                       </>
-                   )}
-               </div>
-           </div>
-           {/* --- End Stop Filter --- */}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Filter panel removed - now rendered in parent */}
 
       {/* Journey List */}
       <motion.ul
@@ -539,9 +435,9 @@ export default function JourneyList({
                           <span className={`font-medium text-lg line-through ${journey.cancelled ? 'text-red-700 dark:text-red-500' : 'text-gray-800 dark:text-gray-200'}`}>
                             {journey.direction}
                           </span>
-                          {/* New destination in red */}
+                          {/* New destination (name_long) in red */}
                           <span className="font-medium text-lg text-red-600 dark:text-red-400 ml-2">
-                            {shortenedDestination}
+                            {getStationLongName(shortenedDestination)} {/* Use helper to get name_long */}
                           </span>
                         </>
                       ) : (
@@ -711,10 +607,21 @@ export default function JourneyList({
                           </p>;
                         }
 
+                        // Find the index of the shortened destination stop, if applicable
+                        let shortenedDestinationStopIndex = -1;
+                        if (shortenedDestination) {
+                            // Get the likely long name of the shortened destination using the helper
+                            const targetLongName = getStationLongName(shortenedDestination).toUpperCase();
+                            // Find index based on stop.name matching the target long name (case-insensitive)
+                            shortenedDestinationStopIndex = stoppingRelevantStops.findIndex(s =>
+                                s.stop.name.toUpperCase() === targetLongName
+                            );
+                        }
+
                         // Return the list directly if there are stops
                         return (
                           <ul className="text-sm space-y-2">
-                            {stoppingRelevantStops.map((stop) => {
+                            {stoppingRelevantStops.map((stop, stopIndex) => { // Added stopIndex
                               // We know arrivalEvent exists because of the filter above
                               const arrivalEvent = stop.arrivals[0];
                               const plannedTime = arrivalEvent.plannedTime ? formatTime(arrivalEvent.plannedTime) : '--:--';
@@ -724,50 +631,85 @@ export default function JourneyList({
                                 : 0;
                               const isCancelled = arrivalEvent.cancelled ?? false;
 
+                              // Determine if this stop should be struck through
+                              const shouldStrikeThrough = shortenedDestinationStopIndex !== -1 && stopIndex > shortenedDestinationStopIndex;
+
+                              // Define base classes and conditional classes for the list item background/opacity
+                              const baseLiClasses = 'flex flex-col p-2 rounded';
+                              let conditionalLiClasses = '';
+                              if (isCancelled && !shouldStrikeThrough) {
+                                  conditionalLiClasses = 'bg-red-50 dark:bg-red-900/30 opacity-70'; // Explicitly cancelled, not shortened
+                              } else if (shouldStrikeThrough) {
+                                  conditionalLiClasses = 'bg-gray-200 dark:bg-gray-600'; // Effectively cancelled (shortened)
+                              } else {
+                                  conditionalLiClasses = 'bg-gray-100 dark:bg-gray-700'; // Default
+                              }
+                              // line-through and text color applied individually
+
                               return (
-                                <li key={stop.id} className={`flex flex-col p-2 rounded bg-gray-100 dark:bg-gray-700 ${isCancelled ? 'text-red-600 dark:text-red-400 opacity-70' : 'text-gray-700 dark:text-gray-300'}`}>
+                                <li key={stop.id} className={`${baseLiClasses} ${conditionalLiClasses}`}>
                                   {/* Top Row: Time Info Only */}
-                                  <div className="flex items-center space-x-1 text-xs mb-0.5"> {/* Reduced margin-bottom */}
-                                    {isCancelled ? (
-                                      <span className="px-1.5 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 rounded font-medium">Cancelled</span>
-                                    ) : (
-                                      <>
-                                        <span className={`font-medium text-blue-700 dark:text-blue-400 ${delay > 0 ? 'line-through' : ''}`}>
-                                          {plannedTime}
+                                  <div className="flex items-center space-x-1 text-xs mb-0.5">
+                                    {/* Time Display Logic */}
+                                    {shouldStrikeThrough ? (
+                                        // Effectively Cancelled Stop
+                                        <>
+                                            <span className="font-medium text-red-600 dark:text-red-400 line-through"> {/* Red time + strikethrough */}
+                                                {plannedTime}
+                                            </span>
+                                            {/* White text on red bg badge, capitalized, NO strikethrough */}
+                                            <span className="ml-1 px-1.5 py-0.5 bg-red-600 text-white text-xs font-semibold rounded inline-block">
+                                                Cancelled
+                                            </span>
+                                        </>
+                                    ) : isCancelled ? (
+                                        // Explicitly Cancelled Stop
+                                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 rounded font-medium line-through"> {/* Badge with strikethrough */}
+                                            Cancelled
                                         </span>
-                                        {actualTime && delay > 0 && (
-                                          <span className="font-medium text-red-600 dark:text-red-400">{actualTime}</span>
-                                        )}
-                                        {delay > 0 && (
-                                          <span className="font-medium text-red-600 dark:text-red-400">(+{delay})</span>
-                                        )}
-                                      </>
+                                    ) : (
+                                        // Normal Stop
+                                        <>
+                                            <span className={`font-medium text-blue-700 dark:text-blue-400 ${delay > 0 ? 'line-through' : ''}`}> {/* Strikethrough only if delayed */}
+                                                {plannedTime}
+                                            </span>
+                                            {actualTime && delay > 0 && (
+                                                <span className="font-medium text-red-600 dark:text-red-400">{actualTime}</span>
+                                            )}
+                                            {delay > 0 && (
+                                                <span className="font-medium text-red-600 dark:text-red-400">(+{delay})</span>
+                                            )}
+                                        </>
                                     )}
                                   </div>
 
-                                  {/* Bottom Row: Track + Stop Name */}
-                                  <div className="flex items-center space-x-2"> {/* New div for track and name */}
-                                    {/* Track Info (only if not cancelled) */}
-                                    {!isCancelled && (
-                                      (() => {
+                                    {/* Bottom Row: Track + Stop Name */}
+                                  <div className="flex items-center space-x-2">
+                                    {/* Track Info */}
+                                    {!(isCancelled && !shouldStrikeThrough) && (() => { // Render track unless explicitly cancelled AND not shortened
                                         const plannedTrack = arrivalEvent.plannedTrack;
                                         const actualTrack = arrivalEvent.actualTrack;
-                                        const displayTrack = actualTrack ?? plannedTrack ?? '?';
-                                        const trackChanged = actualTrack && plannedTrack && actualTrack !== plannedTrack;
+                                        const displayTrack = shouldStrikeThrough ? (plannedTrack ?? '?') : (actualTrack ?? plannedTrack ?? '?');
+                                        const trackChanged = !shouldStrikeThrough && actualTrack && plannedTrack && actualTrack !== plannedTrack;
+                                        const colorClasses = shouldStrikeThrough || trackChanged
+                                            ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500' // Red if shortened or changed
+                                            : 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'; // Blue otherwise
 
                                         return (
-                                          <span className={`flex items-center justify-center w-6 h-6 rounded border text-xs font-semibold flex-shrink-0 ${
-                                            trackChanged
-                                              ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500'
-                                              : 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-                                          }`}>
-                                            {displayTrack}
-                                          </span>
+                                            // Apply color, ensure no line-through
+                                            <span className={`flex items-center justify-center w-6 h-6 rounded border text-xs font-semibold flex-shrink-0 inline-block ${colorClasses}`}>
+                                                {displayTrack}
+                                            </span>
                                         );
-                                      })()
-                                    )}
+                                    })()}
                                     {/* Stop Name */}
-                                    <span className={`text-sm ${isCancelled ? 'line-through' : ''}`}>{stop.stop.name}</span>
+                                    <span className={`text-sm ${
+                                        isCancelled ? 'text-red-600 dark:text-red-400 line-through' : // Explicitly cancelled
+                                        shouldStrikeThrough ? 'text-red-600 dark:text-red-400 line-through' : // Effectively cancelled
+                                        'text-gray-700 dark:text-gray-300' // Normal
+                                    }`}>
+                                        {stop.stop.name}
+                                    </span>
                                   </div>
                                 </li>
                               );
