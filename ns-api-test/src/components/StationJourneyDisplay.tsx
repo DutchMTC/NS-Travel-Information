@@ -53,7 +53,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   initialOffsetMinutes,
 }) => {
   // Define station lookup maps (outside component rendering logic for performance)
-  const stationCodeToNameMap = useMemo(() => new Map(stationData.map(s => [s.code.toUpperCase(), s.name])), []);
+  // Removed unused stationCodeToNameMap
   const stationNameToLongNameMap = useMemo(() => new Map(stationData.map(s => [s.name.toUpperCase(), s.name_long])), []);
   const stationShortNameToLongNameMap = useMemo(() => new Map(stationData.map(s => [s.name_short.toUpperCase(), s.name_long])), []);
 

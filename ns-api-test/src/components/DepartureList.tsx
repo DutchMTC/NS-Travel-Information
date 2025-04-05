@@ -8,7 +8,7 @@ import { FaLongArrowAltRight, FaStar } from 'react-icons/fa'; // Removed unused 
 import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
 import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
-import { stations, Station } from '../lib/stations'; // Import stations data AND Station interface
+import { stations } from '../lib/stations'; // Import stations data
 import { getSpecialLiveryName, getSpecialLiveryImageUrl } from '../lib/specialLiveries'; // Import special livery data and image getter
 // Removed Shadcn UI imports
 
@@ -138,8 +138,7 @@ export default function JourneyList({
   const [loadingStops, setLoadingStops] = useState<boolean>(false); // Loading for individual stop expansion
   const [errorStops, setErrorStops] = useState<string | null>(null); // Error for individual stop expansion
   // Removed local state for selectedTrainTypes and selectedDestinations
-  const [destinationSearchQuery, setDestinationSearchQuery] = useState<string>(''); // Renamed state
-  const [isDestinationSearchFocused, setIsDestinationSearchFocused] = useState(false); // State for input focus
+  // Removed unused state variables for destination search
   // potentialDestinations is calculated via useMemo below
   const handleToggle = async (index: number, trainNumber: string) => {
     const isOpening = expandedIndex !== index;
@@ -177,10 +176,7 @@ export default function JourneyList({
 
   // --- Filtering Logic & Derived State ---
   // Get unique train types from the current journeys
-  const uniqueTrainTypes = useMemo(() => {
-    const types = new Set(journeys.map(j => j.product.shortCategoryName));
-    return Array.from(types).sort(); // Sort alphabetically
-  }, [journeys]);
+  // Removed unused uniqueTrainTypes calculation
 
   // Helper function to extract shortened destination name (similar logic as in render)
   // Moved *before* potentialDestinations useMemo
@@ -201,43 +197,19 @@ export default function JourneyList({
   };
 
   // Calculate potential filter destinations directly from journey data
-  const potentialDestinations = useMemo(() => {
-    const destinations = new Set<string>();
-    journeys.forEach(journey => {
-        let dest: string | undefined | null = null;
-        if (listType === 'departures') {
-            // Use direction, but handle shortened journeys
-            const shortenedDest = getShortenedDestination(journey); // Helper function needed
-            dest = shortenedDest || journey.direction;
-        } else { // arrivals
-            // Use finalDestination or composition destination
-            dest = journey.finalDestination || journey.composition?.destination;
-        }
-        if (dest) {
-            destinations.add(dest);
-        }
-    });
-    return Array.from(destinations).sort();
-  }, [journeys, listType]); // Depends on journeys and listType
+  // Removed unused potentialDestinations calculation
 
   // Call parent handler for train type change
-  const handleTrainTypeChange = (type: string, checked: boolean) => {
-    onTrainTypeChange(type, checked);
-  };
+  // Removed unused handleTrainTypeChange function (parent handler is used directly)
 
   // --- Helper function moved above ---
 
 
   // Call parent handler for adding a destination filter
-  const handleAddDestinationFilter = (destination: string) => {
-    onDestinationChange(destination, true); // true = add
-    // Clear search handled in onClick below
-  };
+  // Removed unused handleAddDestinationFilter function (parent handler is used directly)
 
   // Call parent handler for removing a destination filter
-  const handleRemoveDestinationFilter = (destination: string) => {
-    onDestinationChange(destination, false); // false = remove
-  };
+  // Removed unused handleRemoveDestinationFilter function (parent handler is used directly)
 
   // Removed the older, type-only filter logic.
   // The combined logic below handles both type and stop filters.
