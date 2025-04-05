@@ -603,11 +603,11 @@ export default function TrainInfoSearch() {
                                             journeys={transferInfo.departures}
                                             listType="departures"
                                             currentStationUic={uic}
-                                            showFilterPanel={false}
-                                            selectedTrainTypes={[]}
-                                            selectedDestinations={[]}
-                                            onTrainTypeChange={() => {}}
-                                            onDestinationChange={() => {}}
+                                            // showFilterPanel={false} // Removed
+                                            selectedTrainTypes={[]} // Keep empty arrays as filters aren't used here
+                                            selectedDestinations={[]} // Keep empty arrays as filters aren't used here
+                                            // onTrainTypeChange={() => {}} // Removed
+                                            // onDestinationChange={() => {}} // Removed
                                         />
                                     )}
                                 </div>
