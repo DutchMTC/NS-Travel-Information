@@ -77,6 +77,9 @@ function HomePageContent() {
 
       navigator.geolocation.getCurrentPosition(
           (position) => {
+              // --- DEBUGGING: Log received position object ---
+              console.log("Geolocation Position Received:", position);
+              // --- END DEBUGGING ---
               console.log("Position obtained, fetching stations...");
               fetchNearestStations(position.coords.latitude, position.coords.longitude);
           },
@@ -98,7 +101,9 @@ function HomePageContent() {
                   break;
               }
           },
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+          // Increased timeout and allow cached position for better mobile performance
+          // Increased timeout, but require fresh position
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 } // 15 sec timeout, require fresh position
       );
   }, [fetchNearestStations]); // Depends on fetchNearestStations
 
