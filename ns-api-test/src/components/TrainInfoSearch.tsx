@@ -80,7 +80,8 @@ export default function TrainInfoSearch() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true);
+  // Removed unused isExpanded state
+  const [, setIsExpanded] = useState(true); // Keep setter if needed elsewhere, otherwise remove whole line
   const [isNotInService, setIsNotInService] = useState(false);
   const initialSearchDone = useRef(false);
 
@@ -246,7 +247,8 @@ export default function TrainInfoSearch() {
         if (!summary || !stops || stops.length === 0) return; // Need summary and stops data
 
         const originStop = stops[0];
-        const destinationStop = stops[stops.length - 1];
+        // Removed unused destinationStop variable
+        // const destinationStop = stops[stops.length - 1];
         const secondStop = stops.length > 1 ? stops[1] : null; // For initial nextStation guess
 
         const dataToPin: PinnedJourneyData = {

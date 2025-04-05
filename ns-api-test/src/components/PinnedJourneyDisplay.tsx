@@ -46,7 +46,7 @@ interface NextStopDetails {
 }
 
 // Create lookup maps
-const stationUicToNameMap = new Map(stations.map(s => [s.uic.toString(), s.name_long]));
+// Removed unused stationUicToNameMap
 const stationUicToCodeMap = new Map(stations.map(s => [s.uic.toString(), s.code]));
 
 const REFRESH_INTERVAL_MS = 30000; // Refresh every 30 seconds

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { DepartureMessage } from '@/lib/ns-api'; // Import DepartureMessage type
+// Removed unused DepartureMessage import
 
 // Define the structure for the pinned journey data
 export interface PinnedJourneyData {
