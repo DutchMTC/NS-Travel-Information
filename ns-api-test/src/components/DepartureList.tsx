@@ -1,15 +1,15 @@
 "use client"; // This component needs client-side interactivity
 
 import { useState, useMemo } from 'react'; // Removed unused useEffect
-// Removed duplicate import line
 import { motion, AnimatePresence } from 'framer-motion'; // Import AnimatePresence
 import { Journey, TrainUnit, DepartureMessage } from '../lib/ns-api'; // Import Journey instead of Departure
-import { FaLongArrowAltRight, FaStar } from 'react-icons/fa'; // Removed unused FaFilter
+import { FaLongArrowAltRight, FaStar, FaThumbtack } from 'react-icons/fa'; // Added FaThumbtack, Removed unused FaFilter
 import { FiAlertTriangle } from 'react-icons/fi'; // Import warning icon
 import Image from 'next/image'; // Import next/image
 import { formatTime, calculateDelay } from '../lib/utils'; // Import helpers
 import { stations } from '../lib/stations'; // Import stations data
 import { getSpecialLiveryName, getSpecialLiveryImageUrl } from '../lib/specialLiveries'; // Import special livery data and image getter
+import { usePinnedJourney, PinnedJourneyData } from '../hooks/usePinnedJourney'; // Import pinning hook and type
 // Removed Shadcn UI imports
 
 // Define the props type, including the composition data
@@ -112,6 +112,7 @@ const detailsVariants = {
 const stationCodeToNameMap = new Map(stations.map(s => [s.code.toUpperCase(), s.name]));
 const stationNameToLongNameMap = new Map(stations.map(s => [s.name.toUpperCase(), s.name_long])); // Map for name -> name_long
 const stationShortNameToLongNameMap = new Map(stations.map(s => [s.name_short.toUpperCase(), s.name_long])); // Map for name_short -> name_long
+const stationUicToLongNameMap = new Map(stations.map(s => [s.uic, s.name_long])); // Map UIC to name_long
 
 // Helper to find name_long, trying different name fields
 const getStationLongName = (name: string): string => {
@@ -136,6 +137,7 @@ export default function JourneyList({
   const [stopsData, setStopsData] = useState<Record<string, JourneyStop[]>>({}); // Cache for stops
   const [loadingStops, setLoadingStops] = useState<boolean>(false); // Loading for individual stop expansion
   const [errorStops, setErrorStops] = useState<string | null>(null); // Error for individual stop expansion
+  const { pinJourney, unpinJourney, pinnedJourney } = usePinnedJourney(); // Get pinning functions and state (added unpinJourney)
   // Removed local state for selectedTrainTypes and selectedDestinations
   // Removed unused state variables for destination search
   // potentialDestinations is calculated via useMemo below
@@ -241,6 +243,82 @@ export default function JourneyList({
   }, [journeys, selectedTrainTypes, selectedDestinations, listType]); // Removed unnecessary stopsData dependency
 
   // Removed useEffect for reporting filter counts (parent now has state)
+
+  // --- Pinning Logic ---
+  const handlePinClick = (event: React.MouseEvent, journeyData: JourneyWithDetails) => {
+    event.stopPropagation(); // Prevent item expansion when clicking pin
+
+    // Determine origin name using the existing map
+    const originName = stationUicToLongNameMap.get(currentStationUic) || stationCodeToNameMap.get(currentStationUic.toUpperCase()) || "Unknown Origin";
+
+    // Determine destination, considering shortened journeys
+    const warningMessagePrefixPin = "Rijdt niet verder dan ";
+    const warningMessagePin = journeyData.messages?.find(msg => msg.message.startsWith(warningMessagePrefixPin));
+    let shortenedDestinationPin: string | null = null;
+    if (warningMessagePin) {
+        let extractedNamePin = warningMessagePin.message.substring(warningMessagePrefixPin.length).replace(/\[|\]/g, '');
+        const doorIndexPin = extractedNamePin.indexOf(" door ");
+        if (doorIndexPin !== -1) {
+            extractedNamePin = extractedNamePin.substring(0, doorIndexPin).trim();
+        }
+        shortenedDestinationPin = extractedNamePin;
+    }
+    const destinationName = (shortenedDestinationPin ? getStationLongName(shortenedDestinationPin) : journeyData.direction) || "Unknown";
+
+
+    // Find the materieelnummer of the first part going to the final destination
+    let targetMaterieelNummer: number | undefined | null = undefined;
+    if (journeyData.composition?.parts) {
+        for (const part of journeyData.composition.parts) {
+            const partDestinationCode = part.eindbestemming;
+            if (!partDestinationCode) {
+                // No specific destination for this part, assume it goes all the way
+                targetMaterieelNummer = part.materieelnummer;
+                break; // Found the first one
+            } else {
+                // Check if this part's destination matches the overall journey destination
+                const partDestinationName = stationCodeToNameMap.get(partDestinationCode); // Use the existing map
+                if (partDestinationName && partDestinationName.toUpperCase() === destinationName.toUpperCase()) {
+                    targetMaterieelNummer = part.materieelnummer;
+                    break; // Found the first one
+                }
+            }
+        }
+        // Fallback: If no matching part found, use the first part's number if available
+        if (targetMaterieelNummer === undefined && journeyData.composition.parts.length > 0) {
+            targetMaterieelNummer = journeyData.composition.parts[0].materieelnummer;
+        }
+    }
+
+    const dataToPin: PinnedJourneyData = {
+      origin: originName,
+      originUic: currentStationUic, // Store the reliable UIC code
+      destination: destinationName,
+      departureTime: journeyData.plannedDateTime, // Already ISO string
+      trainNumber: journeyData.product.number, // Keep the service number as well
+      nextStation: journeyData.routeStations?.[0]?.mediumName ?? "Unknown", // Fallback if missing
+      platform: journeyData.actualTrack ?? journeyData.plannedTrack ?? undefined, // Restore platform at origin
+      journeyCategory: journeyData.product.shortCategoryName,
+      materieelNummer: targetMaterieelNummer != null && targetMaterieelNummer !== 0 ? targetMaterieelNummer.toString() : undefined,
+      // messages: journeyData.messages, // Removed - messages fetched dynamically
+      plannedDepartureTime: journeyData.plannedDateTime,
+      // actualDepartureTime: journeyData.actualDateTime, // Removed - fetched live
+      // cancelled: journeyData.cancelled, // Removed - status determined dynamically
+    };
+
+    // Check if the clicked journey is already pinned
+    const isCurrentlyPinned = pinnedJourney?.trainNumber === journeyData.product.number &&
+                             pinnedJourney?.departureTime === journeyData.plannedDateTime;
+
+    // Toggle Pin: If already pinned, unpin; otherwise, pin.
+    if (isCurrentlyPinned) {
+        unpinJourney();
+    } else {
+        pinJourney(dataToPin);
+    }
+  };
+  // --- End Pinning Logic ---
+
   // --- End Filtering Logic ---
 
 
@@ -306,10 +384,11 @@ export default function JourneyList({
         return (
           <motion.li
             key={journey.plannedDateTime + '-' + journey.product.number} // Use more stable key
-            className={`p-4 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer ${journey.cancelled ? 'bg-red-50 dark:bg-red-900/30' : ''}`} // Added dark mode hover/cancelled bg
+            className={`relative p-4 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer ${journey.cancelled ? 'bg-red-50 dark:bg-red-900/30' : ''}`} // Added relative positioning
             variants={itemVariants}
             onClick={() => handleToggle(index, trainNumber)} // Add onClick handler
           >
+            {/* Pin Button moved below */}
             {/* Main Info Row */}
             <div className="flex justify-between items-start mb-2">
               {/* Left Column: Time/Delay + Destination/Type */}
@@ -426,13 +505,32 @@ export default function JourneyList({
                 </div>
               </div>
               {/* Right Column: Track Square */}
-              <span className={`flex items-center justify-center w-12 h-12 rounded border text-base font-semibold flex-shrink-0 ${
-                journey.actualTrack && journey.plannedTrack && journey.actualTrack !== journey.plannedTrack
-                  ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500' // Dark mode track change
-                  : 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400' // Dark mode normal track
-              }`}>
-                {journey.actualTrack ?? journey.plannedTrack ?? '?'}
-              </span>
+              {/* Right Column: Track Square and Pin Button */}
+              <div className="flex items-center flex-shrink-0 ml-2 space-x-2"> {/* Increased space-x to 2 */}
+                  {/* Track Square */}
+                  <span className={`flex items-center justify-center w-12 h-12 rounded border text-base font-semibold ${
+                    journey.actualTrack && journey.plannedTrack && journey.actualTrack !== journey.plannedTrack
+                      ? 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500'
+                      : 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                  }`}>
+                    {journey.actualTrack ?? journey.plannedTrack ?? '?'}
+                  </span>
+                  {/* Pin Button */}
+                  {(() => {
+                      const isCurrentlyPinned = pinnedJourney?.trainNumber === journey.product.number &&
+                                               pinnedJourney?.departureTime === journey.plannedDateTime;
+                      return (
+                          <button
+                            onClick={(e) => handlePinClick(e, journey)}
+                            className={`p-1.5 rounded hover:bg-gray-300 dark:hover:bg-gray-600 ${isCurrentlyPinned ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                            aria-label={isCurrentlyPinned ? "Unpin Journey" : "Pin Journey"}
+                            title={isCurrentlyPinned ? "Unpin Journey" : "Pin Journey"}
+                          >
+                            <FaThumbtack size={18} className={isCurrentlyPinned ? 'fill-current' : ''} /> {/* Increased icon size */}
+                          </button>
+                      );
+                  })()}
+              </div>
             </div>
 
             {/* Composition Details - No longer expandable */}

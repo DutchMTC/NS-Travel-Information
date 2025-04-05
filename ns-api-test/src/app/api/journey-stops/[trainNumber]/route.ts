@@ -83,14 +83,12 @@ export async function GET(request: NextRequest, props: { params: Promise<{ train
         const data: JourneyDetailsResponse = await response.json();
 
         // Extract the stops array
-        if (data.payload && Array.isArray(data.payload.stops)) {
-            // You might want to sort the stops based on their sequence if the API doesn't guarantee order
-            // (Requires logic based on previousStopId/nextStopId or timestamps if available)
-            // For now, returning as is.
-            return NextResponse.json(data.payload.stops);
+        // Return the entire payload, which includes stops and notes
+        if (data.payload) {
+            return NextResponse.json(data.payload);
         } else {
-            console.warn(`Could not find stops array in journey details response for train ${trainNumber}.`);
-            return NextResponse.json({ error: "Stops data not found in API response" }, { status: 404 }); // Or 500 if unexpected
+            console.warn(`Could not find payload in journey details response for train ${trainNumber}.`);
+            return NextResponse.json({ error: "Payload data not found in API response" }, { status: 404 }); // Or 500 if unexpected
         }
 
     } catch (error) {

@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
             headers: {
                 'Ocp-Apim-Subscription-Key': apiKey,
             },
+            // Add caching: Revalidate every 60 seconds
+            next: { revalidate: 60 }
         });
 
         if (!response.ok) {
@@ -45,7 +47,6 @@ export async function GET(request: NextRequest) {
             names: station.names // Pass the names object
         })) || [];
 
-        console.log('API Route - Data being sent:', stations); // Added for debugging
         return NextResponse.json({ stations: stations });
 
     } catch (error) {
