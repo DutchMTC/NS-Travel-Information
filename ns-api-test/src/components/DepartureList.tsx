@@ -65,8 +65,7 @@ interface JourneyListProps {
   // Filter state and handlers are now controlled by parent
   selectedTrainTypes: string[];
   selectedDestinations: string[];
-  onTrainTypeChange: (type: string, checked: boolean) => void;
-  onDestinationChange: (destination: string, add: boolean) => void; // add=true to add, add=false to remove
+  // onTrainTypeChange and onDestinationChange are handled by the parent
 }
 
 // Animation variants
@@ -129,9 +128,9 @@ export default function JourneyList({
     // showFilterPanel prop removed
     // Receive filter state and callbacks from props
     selectedTrainTypes,
-    selectedDestinations,
-    onTrainTypeChange,
-    onDestinationChange
+    selectedDestinations
+    // onTrainTypeChange, // Handled by parent
+    // onDestinationChange // Handled by parent
 }: JourneyListProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [stopsData, setStopsData] = useState<Record<string, JourneyStop[]>>({}); // Cache for stops

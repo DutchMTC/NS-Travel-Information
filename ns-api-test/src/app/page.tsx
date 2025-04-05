@@ -60,9 +60,14 @@ function HomePageContent() {
           } else {
             setLocationError("No nearby stations found.");
           }
-        } catch (error: any) {
+        } catch (error: unknown) { // Use unknown for better type safety
           console.error("Failed to fetch nearest stations:", error);
-          setLocationError(error.message || "Failed to fetch nearest stations.");
+          // Type check before accessing properties
+          if (error instanceof Error) {
+            setLocationError(error.message);
+          } else {
+            setLocationError("An unknown error occurred while fetching nearest stations.");
+          }
         } finally {
           setLocationLoading(false);
         }

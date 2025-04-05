@@ -731,8 +731,8 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
             // Pass down filter state and handlers (still needed by JourneyList for display/logic)
             selectedTrainTypes={selectedTrainTypes}
             selectedDestinations={selectedDestinations}
-            onTrainTypeChange={handleTrainTypeChange}
-            onDestinationChange={handleDestinationChange}
+            // onTrainTypeChange={handleTrainTypeChange} // Removed, handled in parent
+            // onDestinationChange={handleDestinationChange} // Removed, handled in parent
         />
       )}
 
