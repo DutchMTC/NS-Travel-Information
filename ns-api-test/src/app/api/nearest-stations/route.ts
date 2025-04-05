@@ -34,7 +34,13 @@ export async function GET(request: NextRequest) {
         const data = await response.json();
 
         // Extract relevant station data, ensuring id.code is available
-        const stations = data?.payload?.map((station: any) => ({
+        // Define a type for the expected station structure in the payload
+        type NsStationPayloadItem = {
+          id: { code: string; [key: string]: unknown }; // Expect id with at least a code
+          names: { long: string; [key: string]: unknown }; // Expect names with at least a long name
+          [key: string]: unknown; // Allow other properties
+        };
+        const stations = data?.payload?.map((station: NsStationPayloadItem) => ({
             id: station.id, // Pass the whole id object which should contain 'code'
             names: station.names // Pass the names object
         })) || [];
