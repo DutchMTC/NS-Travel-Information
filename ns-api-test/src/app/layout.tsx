@@ -6,6 +6,7 @@ import { Geist, Geist_Mono } from "next/font/google"; // Corrected font import n
 import { ThemeProvider } from "../components/ThemeProvider"; // Import ThemeProvider
 // import { ThemeToggleButton } from "../components/ThemeToggleButton"; // Moved to AnimatedHeader
 import { AnimatedHeader } from "../components/AnimatedHeader"; // Import the new header component
+import PinnedJourneyDisplay from "../components/PinnedJourneyDisplay"; // Import PinnedJourneyDisplay (default export)
 import "./globals.css";
 
 
@@ -73,6 +74,7 @@ export default function RootLayout({
         <ThemeProvider>
           {/* Use the new AnimatedHeader client component */}
           <AnimatedHeader />
+          <PinnedJourneyDisplay /> {/* Add the pinned journey display */}
           {/* Removed extra closing header tag */}
           <main>{children}</main> {/* Wrap children in main */}
         </ThemeProvider>
