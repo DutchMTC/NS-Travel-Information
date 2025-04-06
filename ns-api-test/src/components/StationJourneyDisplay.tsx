@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'; // Removed useId as it wasn't used
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaFilter } from 'react-icons/fa'; // Import Filter icon
@@ -101,7 +101,7 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const filterTriggerRef = useRef<HTMLButtonElement>(null); // Ref for filter button
-
+  const fetchControllerRef = useRef<AbortController | null>(null); // Ref for fetch AbortController
   // Memos
   const targetDateTime = useMemo(() => {
     if (debouncedOffsetMinutes === 0) {
@@ -183,51 +183,91 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
 
   // Callbacks
   const fetchAndSetJourneys = useCallback(async (type: JourneyType, dateTime?: string, isBackgroundRefresh = false) => {
-    // --- Strict Refresh: Purge existing data before fetching ---
-    setJourneys([]);
-    setAllDisruptions([]);
-    setActiveDisruptions([]);
-    setActiveMaintenances([]);
-    setError(null); // Reset error state as well
+    // Abort previous fetch if it exists
+    if (fetchControllerRef.current && !isBackgroundRefresh) {
+        console.log("Aborting previous fetch request..."); // DEBUG LOG
+        fetchControllerRef.current.abort();
+    }
 
-    // Only show full loading state for initial load or explicit user action, not background refresh
+    // Create a new AbortController for the current fetch, unless it's a background refresh
+    let currentAbortController: AbortController | null = null;
+    if (!isBackgroundRefresh) {
+        currentAbortController = new AbortController();
+        fetchControllerRef.current = currentAbortController;
+    }
+
+    // Only show full loading state for initial load or explicit user action
     if (!isBackgroundRefresh) {
         setIsLoading(true);
+        setError(null); // Reset error only on foreground fetches
     }
-    // --- End Strict Refresh ---
 
     try {
       const apiUrl = `/api/journeys/${stationCode}?type=${type}${dateTime ? `&dateTime=${encodeURIComponent(dateTime)}` : ''}`;
-      const response = await fetch(apiUrl, { cache: 'no-store' }); // Ensure no browser caching
+      console.log(`Fetching: ${apiUrl}`); // DEBUG LOG
+      const response = await fetch(apiUrl, {
+          cache: 'no-store',
+          signal: currentAbortController?.signal // Pass the signal to fetch
+      });
+
       if (!response.ok) {
+        // Don't throw error for aborted requests
+        if (currentAbortController?.signal.aborted) {
+            console.log("Fetch aborted gracefully."); // DEBUG LOG
+            return; // Exit early if aborted
+        }
         let errorMsg = `Error fetching ${type}: ${response.status} ${response.statusText}`;
         try {
           const errorData = await response.json();
           if (errorData.error) errorMsg = errorData.error;
-        } catch { /* ignore */ }
+        } catch { /* ignore parsing error body */ }
         throw new Error(errorMsg);
       }
+
       const data: ApiResponse = await response.json();
-      // Update state only if the component is still mounted and processing this request
-      // (Could add a check with an isMounted ref if needed, but usually okay for simple cases)
+
+      // Check if the request was aborted *after* await response.json()
+      // This can happen in rare cases if abort is called during JSON parsing
+      if (currentAbortController?.signal.aborted) {
+          console.log("Fetch aborted after response received but before state update."); // DEBUG LOG
+          return; // Exit early
+      }
+
+      // --- Update state only on successful fetch ---
+      console.log(`Fetch successful for ${type}. Updating state.`); // DEBUG LOG
       setJourneys(data.journeys);
       setAllDisruptions(data.disruptions);
-    } catch (err) {
-      console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
-      // Don't clear data or set main error on background refresh errors, just log
-      if (!isBackgroundRefresh) {
-          setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
-          setJourneys([]); // Clear data on foreground error
-          setAllDisruptions([]);
-      } // else: keep potentially stale data visible instead of showing a full error state
+      // Don't reset error here, it was reset at the start of foreground fetch
+      // setError(null);
+
+    } catch (err: any) {
+        // Check if the error is due to the fetch being aborted
+        if (err.name === 'AbortError') {
+            console.log('Fetch request was aborted.'); // DEBUG LOG
+            // Don't set error state for aborted requests
+        } else {
+            console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
+            // Only set error and clear data on foreground fetch errors
+            if (!isBackgroundRefresh) {
+                setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
+                setJourneys([]); // Clear data on foreground error
+                setAllDisruptions([]);
+                setActiveDisruptions([]); // Also clear derived state
+                setActiveMaintenances([]);
+            }
+            // For background refresh errors, just log, keep potentially stale data visible
+        }
     } finally {
-      // Only stop the main loading indicator if it wasn't a background refresh or if it's still loading
-       if (!isBackgroundRefresh || isLoading) {
-            setIsLoading(false);
-       }
+      // Stop loading indicator only for foreground fetches
+      if (!isBackgroundRefresh) {
+          setIsLoading(false);
+          // Clear the controller ref if this fetch completed (wasn't aborted)
+          if (fetchControllerRef.current === currentAbortController) {
+              fetchControllerRef.current = null;
+          }
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stationCode]); // isLoading deliberately omitted, see logic in finally block
+  }, [stationCode]); // Dependencies: only stationCode. Other variables are captured.
 
   const handleTypeChange = (newType: JourneyType) => {
     setJourneyType(newType);
