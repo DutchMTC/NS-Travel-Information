@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
             let errorJson = null;
             try {
                 errorJson = JSON.parse(errorText);
-            } catch (_e) { // Ignore parsing error, variable intentionally unused
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_e) { // Ignore parsing error
                 // Ignore parsing error
             }
             return NextResponse.json(
