@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
             let errorJson = null;
             try {
                 errorJson = JSON.parse(errorText);
-            } catch (e) {
+            } catch (_e) { // Ignore parsing error, variable intentionally unused
                 // Ignore parsing error
             }
             return NextResponse.json(
