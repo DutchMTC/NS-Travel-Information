@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react'; // Added useEffect for potential future use
+import React, { useState } from 'react'; // Removed unused useEffect
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -255,7 +255,7 @@ export default function TravelPlannerPage() {
           </Alert>
         )}
         {!loading && !error && !trips && (
-          <p className="text-muted-foreground">Configure your journey using the 'Customize Trip' button and click 'Plan Trip'.</p>
+          <p className="text-muted-foreground">Configure your journey using the &apos;Customize Trip&apos; button and click &apos;Plan Trip&apos;.</p>
         )}
          {!loading && !error && trips && trips.length === 0 && (
           <p className="text-muted-foreground">No trips found matching your criteria.</p>

@@ -240,22 +240,33 @@ export const StationJourneyDisplay: React.FC<StationJourneyDisplayProps> = ({
       // Don't reset error here, it was reset at the start of foreground fetch
       // setError(null);
 
-    } catch (err: any) {
-        // Check if the error is due to the fetch being aborted
-        if (err.name === 'AbortError') {
-            console.log('Fetch request was aborted.'); // DEBUG LOG
-            // Don't set error state for aborted requests
+    } catch (err: unknown) {
+        // Check if the error is an AbortError or a general error
+        if (err instanceof Error) {
+            if (err.name === 'AbortError') {
+                console.log('Fetch request was aborted.'); // DEBUG LOG
+                // Don't set error state for aborted requests
+            } else {
+                // Handle other types of Errors
+                console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
+                if (!isBackgroundRefresh) {
+                    setError(err.message); // Use the error message directly
+                    setJourneys([]);
+                    setAllDisruptions([]);
+                    setActiveDisruptions([]);
+                    setActiveMaintenances([]);
+                }
+            }
         } else {
-            console.error(`Client-side fetch error for ${type} (${stationCode}):`, err);
-            // Only set error and clear data on foreground fetch errors
+            // Handle cases where the caught value is not an Error object
+            console.error(`An unexpected non-Error value was caught during fetch for ${type} (${stationCode}):`, err);
             if (!isBackgroundRefresh) {
-                setError(err instanceof Error ? err.message : `An unknown client-side error occurred.`);
-                setJourneys([]); // Clear data on foreground error
+                setError(`An unknown client-side error occurred.`);
+                setJourneys([]);
                 setAllDisruptions([]);
-                setActiveDisruptions([]); // Also clear derived state
+                setActiveDisruptions([]);
                 setActiveMaintenances([]);
             }
-            // For background refresh errors, just log, keep potentially stale data visible
         }
     } finally {
       // Stop loading indicator only for foreground fetches
