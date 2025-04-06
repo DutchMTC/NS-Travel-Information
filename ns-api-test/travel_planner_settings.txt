@@ -1,0 +1,296 @@
+
+Name
+In
+Required
+Type
+Description
+
+lang
+query
+false
+string
+Language to use for localizing the travel advice. Only a small subset of text is translated, mainly notes. Defaults to Dutch
+
+fromStation
+query
+false
+string
+NS station code of the origin station
+
+originUicCode
+query
+false
+string
+UIC code of the origin station
+
+originLat
+query
+false
+number
+Latitude of the origin location. Should be used together with originLng. If the origin is a station, just provide the uicCode instead of the lat/lng
+
+originLng
+query
+false
+number
+Longitude of the origin location. Should be used together with originLat. If the origin is a station, just provide the uicCode instead of the lat/lng
+
+originName
+query
+false
+string
+Name of the origin location. Will be returned in the response
+
+toStation
+query
+false
+string
+NS station code of the destination station
+
+destinationUicCode
+query
+false
+string
+UIC code of the destination station
+
+destinationLat
+query
+false
+number
+Latitude of the destination location. Should be used together with destinationLng. If the destination is a station, just provide the uicCode instead of the lat/lng
+
+destinationLng
+query
+false
+number
+Longitude of the destination location. Should be used together with destinationLat. If the destination is a station, just provide the uicCode instead of the lat/lng
+
+destinationName
+query
+false
+string
+Name of the destination location. Will be returned in the response
+
+viaStation
+query
+false
+string
+NS station code of the via station
+
+viaUicCode
+query
+false
+string
+UIC code of the via station
+
+viaLat
+query
+false
+number
+Latitude of the via location. Should be used together with viaLng. Will only be used for door-to-door trips. If the via location is a station, just provide the uicCode instead of the lat/lng.
+
+viaLng
+query
+false
+number
+Longitude of the via location. Should be used together with viaLat. Will only be used for door-to-door trips. If the via location is a station, just provide the uicCode instead of the lat/lng.
+
+originWalk
+query
+false
+boolean
+Return trip advices with walking options to start travel from origin to a train station (first mile)
+
+originBike
+query
+false
+boolean
+Return trip advices with biking options to start travel from origin to a train station (first mile)
+
+originCar
+query
+false
+boolean
+Return trip advices with car options to start travel from origin to a train station (first mile)
+
+destinationWalk
+query
+false
+boolean
+Return trip advices with walking options to finish travel to the destination (last mile)
+
+destinationBike
+query
+false
+boolean
+Return trip advices with biking options to finish travel to the destination (last mile)
+
+destinationCar
+query
+false
+boolean
+Return trip advices with car options to finish travel to the destination (last mile)
+
+dateTime
+query
+false
+string
+Format - date-time (as date-time in RFC3339). Datetime that the user want to depart from his origin or or arrive at his destination
+
+searchForArrival
+query
+false
+boolean
+If set, the date and time parameters specify the arrival time for the trip search instead of the departure time
+
+departure
+query
+false
+boolean
+Use searchForArrival parameter instead
+
+context
+query
+false
+string
+Parameter specifying that the user wants a next or previous page of the results
+
+shorterChange
+query
+false
+boolean
+Changes the CHANGE_NOT_POSSIBLE status to CHANGE_COULD_BE_POSSIBLE if the traveler can walk twice as fast. Deprecated: the functionality is removed because we do not want to suggest travelers to run.
+
+addChangeTime
+query
+false
+integer
+Format - int32. Extra time in minutes required at all transfers to change trains.
+
+minimalChangeTime
+query
+false
+integer
+Format - int32. Use addChangeTime instead
+
+viaWaitTime
+query
+false
+integer
+Format - int32. Waiting time in minutes at the via location, exclusive of transfer time
+
+originAccessible
+query
+false
+boolean
+Use travelAssistance parameter instead
+
+travelAssistance
+query
+false
+boolean
+Return trip advices from the trip assistance booking engine PAS
+
+travelAssistanceTransferTime
+query
+false
+integer
+Format - int32. Use addChangeTime parameter instead
+
+accessibilityEquipment1
+query
+false
+string
+Accessibility equipment to use when searching for trip assistance options (AVG/PAS)
+
+accessibilityEquipment2
+query
+false
+string
+Accessibility equipment to use when searching for trip assistance options (AVG/PAS)
+
+searchForAccessibleTrip
+query
+false
+boolean
+Return trip advices that are accessible. (might be bookable too)
+
+filterTransportMode
+query
+false
+string
+Could be used to filter for REGIONAL_TRAINS. This parameter is replaced by the localTrainsOnly parameter
+
+localTrainsOnly
+query
+false
+boolean
+Search only for local train options, i.e. sprinter/sneltrein/stoptrein
+
+excludeHighSpeedTrains
+query
+false
+boolean
+Exclude high speed trains from results (including those with a required reservation)
+
+excludeTrainsWithReservationRequired
+query
+false
+boolean
+Exclude trains for domestic trips that require a reservation (e.g. Eurostar)
+
+product
+query
+false
+string
+Name of the product that will be used in Travel
+<select class="form-control" aria-label="Parameter value"><option value="">Select value...</option><option value="GEEN">GEEN</option><option value="OVCHIPKAART_ENKELE_REIS">OVCHIPKAART_ENKELE_REIS</option><option value="OVCHIPKAART_RETOUR">OVCHIPKAART_RETOUR</option><option value="DAL_VOORDEEL">DAL_VOORDEEL</option><option value="ALTIJD_VOORDEEL">ALTIJD_VOORDEEL</option><option value="DAL_VRIJ">DAL_VRIJ</option><option value="WEEKEND_VRIJ">WEEKEND_VRIJ</option><option value="ALTIJD_VRIJ">ALTIJD_VRIJ</option><option value="BUSINESSCARD">BUSINESSCARD</option><option value="BUSINESSCARD_DAL">BUSINESSCARD_DAL</option><option value="STUDENT_WEEK">STUDENT_WEEK</option><option value="STUDENT_WEEKEND">STUDENT_WEEKEND</option><option value="VDU">VDU</option><option value="SAMENREISKORTING">SAMENREISKORTING</option><option value="TRAJECT_VRIJ">TRAJECT_VRIJ</option></select>
+
+
+discount
+query
+false
+string
+Discount of travel to use when calculating product prices
+
+travelClass
+query
+false
+integer
+Format - int32. Class of travel to use when calculating product prices
+
+passing
+query
+false
+boolean
+Show intermediate stops that the journey passes but doesn't stop at (only works for source:HARP not multi-modal trips from negentwee)
+
+travelRequestType
+query
+false
+string
+directionsOnly only plans a google directions (walk/bike/car) advice
+
+disabledTransportModalities
+query
+false
+array
+exclude modalities from trip search
+
+firstMileModality
+query
+false
+string
+Shared modality origin filter to use when querying trips
+
+lastMileModality
+query
+false
+string
+Shared modality destination filter to use when querying trips
+
+entireTripModality
+query
+false
+string
+Shared modality total trip filter to use when querying trips

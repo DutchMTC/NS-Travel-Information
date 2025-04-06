@@ -1,0 +1,168 @@
+--- Travel Plan Summary ---
+
+=== Planning Settings ===
+Origin:      Alkmaar
+Destination: Rotterdam Centraal
+Time:        05-04-2025, 18:44
+
+=== Trip Option 1 ===
+Departure:   05-04-2025, 18:44
+Arrival:     05-04-2025, 20:08
+Duration:    84 minutes
+Transfers:   2
+Status:      NORMAL
+Notes:
+  - € 3.00 supplement
+
+  --- Legs ---
+  Leg 1: IC IC 3071 (Direction: Nijmegen)
+    18:44 Depart Alkmaar (Track 5)
+    19:15 Arrive Amsterdam Sloterdijk (Track 5)
+
+  Leg 2: SPR SPR 8273 (Direction: Hoofddorp)
+    19:25 Depart Amsterdam Sloterdijk (Track 11)
+    19:35 Arrive Schiphol Airport ✈ (Track 4)
+    Transfer Info:
+      - 10 min. transfer time
+
+  Leg 3: ICD ICD 2466 (Direction: Rotterdam Centraal)
+    19:42 Depart Schiphol Airport ✈ (Track 5-6)
+    20:08 Arrive Rotterdam Centraal (Track 11)
+      Note: Supplement
+      Note: Supplement
+    Transfer Info:
+      - 7 min. transfer time
+
+
+=== Trip Option 2 ===
+Departure:   05-04-2025, 18:44
+Arrival:     05-04-2025, 20:35
+Duration:    111 minutes
+Transfers:   2
+Status:      NORMAL
+
+  --- Legs ---
+  Leg 1: IC IC 3071 (Direction: Nijmegen)
+    18:44 Depart Alkmaar (Track 5)
+    19:15 Arrive Amsterdam Sloterdijk (Track 5)
+
+  Leg 2: IC IC 2177 (Direction: Leiden Centraal)
+    19:25 Depart Amsterdam Sloterdijk (Track 7)
+    19:56 Arrive Leiden Centraal (Track 9b)
+    Transfer Info:
+      - 10 min. transfer time
+      - Avoid extra costs: transfer via the station hall
+
+  Leg 3: IC IC 3566 (Direction: Dordrecht)
+    20:02 Depart Leiden Centraal (Track 8b)
+    20:35 Arrive Rotterdam Centraal (Track 7)
+    Transfer Info:
+      - Transfer at same platform
+
+
+=== Trip Option 3 ===
+Departure:   05-04-2025, 18:44
+Arrival:     05-04-2025, 20:40
+Duration:    116 minutes
+Transfers:   1
+Status:      NORMAL
+
+  --- Legs ---
+  Leg 1: IC IC 3071 (Direction: Nijmegen)
+    18:44 Depart Alkmaar (Track 5)
+    19:51 Arrive Utrecht Centraal (Track 19)
+
+  Leg 2: IC IC 2868 (Direction: Rotterdam Centraal)
+    20:03 Depart Utrecht Centraal (Track 8)
+    20:40 Arrive Rotterdam Centraal (Track 14)
+    Transfer Info:
+      - 12 min. transfer time
+
+
+=== Trip Option 4 ===
+Departure:   05-04-2025, 19:02
+Arrival:     05-04-2025, 21:04
+Duration:    122 minutes
+Transfers:   0
+Status:      NORMAL
+
+  --- Legs ---
+  Leg 1: SPR SPR 4075 (Direction: Rotterdam Centraal)
+    19:02 Depart Alkmaar (Track 5)
+    21:04 Arrive Rotterdam Centraal (Track 16)
+
+
+=== Trip Option 5 ===
+Departure:   05-04-2025, 19:14
+Arrival:     05-04-2025, 20:39
+Duration:    85 minutes
+Transfers:   2
+Status:      NORMAL
+Notes:
+  - € 3.00 supplement
+
+  --- Legs ---
+  Leg 1: IC IC 3073 (Direction: Nijmegen)
+    19:14 Depart Alkmaar (Track 5)
+    19:45 Arrive Amsterdam Sloterdijk (Track 5)
+
+  Leg 2: SPR SPR 8275 (Direction: Hoofddorp)
+    19:55 Depart Amsterdam Sloterdijk (Track 11)
+    20:05 Arrive Schiphol Airport ✈ (Track 4)
+    Transfer Info:
+      - 10 min. transfer time
+
+  Leg 3: ECD ECD 9568 (Direction: Bruxelles Midi)
+    20:11 Depart Schiphol Airport ✈ (Track 5-6)
+    20:39 Arrive Rotterdam Centraal (Track 3)
+      Note: Supplement
+      Note: Supplement
+    Transfer Info:
+      - 6 min. transfer time
+
+
+=== Trip Option 6 ===
+Departure:   05-04-2025, 19:14
+Arrival:     05-04-2025, 21:05
+Duration:    111 minutes
+Transfers:   2
+Status:      NORMAL
+
+  --- Legs ---
+  Leg 1: IC IC 3073 (Direction: Nijmegen)
+    19:14 Depart Alkmaar (Track 5)
+    19:45 Arrive Amsterdam Sloterdijk (Track 5)
+
+  Leg 2: IC IC 2179 (Direction: Leiden Centraal)
+    19:55 Depart Amsterdam Sloterdijk (Track 7)
+    20:26 Arrive Leiden Centraal (Track 9b)
+    Transfer Info:
+      - 10 min. transfer time
+      - Avoid extra costs: transfer via the station hall
+
+  Leg 3: IC IC 3568 (Direction: Dordrecht)
+    20:32 Depart Leiden Centraal (Track 8b)
+    21:05 Arrive Rotterdam Centraal (Track 6)
+    Transfer Info:
+      - Transfer at same platform
+
+
+=== Trip Option 7 ===
+Departure:   05-04-2025, 19:14
+Arrival:     05-04-2025, 21:10
+Duration:    116 minutes
+Transfers:   1
+Status:      NORMAL
+
+  --- Legs ---
+  Leg 1: IC IC 3073 (Direction: Nijmegen)
+    19:14 Depart Alkmaar (Track 5)
+    20:21 Arrive Utrecht Centraal (Track 19)
+
+  Leg 2: IC IC 2870 (Direction: Rotterdam Centraal)
+    20:33 Depart Utrecht Centraal (Track 8)
+    21:10 Arrive Rotterdam Centraal (Track 14)
+    Transfer Info:
+      - 12 min. transfer time
+
+--- End of Summary ---
