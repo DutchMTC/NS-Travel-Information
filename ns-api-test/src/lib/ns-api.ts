@@ -2,7 +2,7 @@
 
 // Define interfaces for the NS API departure response structure
 // Based on typical structure, might need refinement based on actual API response
-interface TrainProduct {
+export interface TrainProduct { // Exported
   categoryCode: string;
   shortCategoryName: string;
   longCategoryName: string;
@@ -17,7 +17,7 @@ interface RouteStation {
   mediumName: string;
 }
 
-export interface DepartureMessage { // Add export
+export interface DepartureMessage {
   message: string;
   style: string;
 }
@@ -25,18 +25,17 @@ export interface DepartureMessage { // Add export
 // Renamed from Departure as it's used for both departures and arrivals
 export interface Journey {
   product: TrainProduct;
-  origin?: string; // Added for arrivals (sometimes present)
-  direction?: string; // Keep for departures
-  plannedDateTime: string; // ISO 8601 format (e.g., "2023-10-27T10:30:00+0200")
+  origin?: string;
+  direction?: string;
+  plannedDateTime: string;
   plannedTrack?: string;
-  actualDateTime: string; // ISO 8601 format
+  actualDateTime: string;
   actualTrack?: string;
   trainCategory: string;
   cancelled: boolean;
   routeStations: RouteStation[];
   messages?: DepartureMessage[];
-  originPlannedDepartureTime?: string; // <<< ADDED FIELD
-  // Add other relevant fields if needed based on the API documentation or response
+  originPlannedDepartureTime?: string;
 }
 
 // Payload structure for Departures
@@ -45,12 +44,9 @@ interface DeparturesPayload {
   departures: Journey[];
 }
 
-// Payload structure for Arrivals (assuming similar structure, key change)
+// Payload structure for Arrivals
 interface ArrivalsPayload {
     source: string;
-    // The actual API response uses 'arrivals' containing objects that might have 'origin' but not 'direction'
-    // We map this to our Journey interface in fetchJourneys
-    // Define a basic structure for the raw arrival object before mapping
     arrivals: {
         product: TrainProduct;
         plannedDateTime: string;
@@ -62,8 +58,7 @@ interface ArrivalsPayload {
         plannedTrack?: string;
         actualTrack?: string;
         messages?: DepartureMessage[];
-        // Include other potential fields from the raw API response if known
-        [key: string]: unknown; // Use unknown instead of any for better type safety
+        [key: string]: unknown;
     }[];
 }
 
@@ -78,25 +73,36 @@ interface ArrivalsResponse {
 }
 
 // --- Interfaces for Virtual Train API (Composition) ---
-// Structure based on user feedback and common NS API patterns
-export interface TrainUnit { // Add export keyword
-  type: string; // e.g., "VIRM", "ICM"
-  materieelnummer: number; // Add materieelnummer field
-  // Assuming an image URL might be provided - adjust if needed
-  afbeelding?: string; // Correct field name for image URL
-  eindbestemming?: string; // Destination specific to this part
-  // Other properties like number of seats might exist
+export interface TrainUnit {
+  type: string;
+  materieelnummer: number;
+  afbeelding?: string;
+  eindbestemming?: string;
 }
 
 interface CompositionResponse {
-  materieeldelen: TrainUnit[]; // Array of train parts
-  lengte: number;             // Total length
-  richting?: string;          // Possible field for destination/direction
-  // Other potential fields like 'bakken' might exist
+  materieeldelen: TrainUnit[];
+  lengte: number;
+  richting?: string;
 }
 
 // --- Interfaces for Journey Details API (/journey) ---
-interface JourneyStop {
+
+// Basic interface for stock information within JourneyStop
+interface StockInfo {
+    trainType?: string;
+    numberOfSeats?: number;
+    numberOfParts?: number;
+    trainParts?: {
+        stockIdentifier?: string;
+        facilities?: string[];
+        image?: { uri?: string };
+    }[];
+    hasSignificantChange?: boolean;
+}
+
+// Exporting JourneyStop as it's used in the Leg interface
+export interface JourneyStop {
     id: string;
     stop: {
         name: string;
@@ -107,32 +113,43 @@ interface JourneyStop {
     };
     previousStopId: string[];
     nextStopId: string[];
-    destination?: string; // Destination might be present here
-    // Add arrival/departure details within the stop object
-    arrival?: { // Make optional
+    destination?: string;
+    status?: string;
+    kind?: string;
+    arrivals?: {
+        product?: TrainProduct;
+        origin?: { name?: string; uicCode?: string };
+        destination?: { name?: string; uicCode?: string };
         plannedTime?: string;
         actualTime?: string;
         delayInSeconds?: number;
         cancelled?: boolean;
         plannedTrack?: string;
         actualTrack?: string;
-    };
-    departure?: { // Make optional
+        stockIdentifiers?: string[];
+    }[];
+    departures?: {
+        product?: TrainProduct;
+        origin?: { name?: string; uicCode?: string };
+        destination?: { name?: string; uicCode?: string };
         plannedTime?: string;
         actualTime?: string;
         delayInSeconds?: number;
         cancelled?: boolean;
         plannedTrack?: string;
         actualTrack?: string;
-    };
-    // Add other potential fields like arrival/departure times if needed
+        stockIdentifiers?: string[];
+    }[];
+    actualStock?: StockInfo;
+    plannedStock?: StockInfo;
+    platformFeatures?: unknown[];
+    coachCrowdForecast?: unknown[];
 }
 
 interface JourneyDetailsPayload {
-    notes: unknown[]; // Use unknown instead of any for notes
+    notes: unknown[];
     productNumbers: string[];
     stops: JourneyStop[];
-    // Add other potential fields
 }
 
 interface JourneyDetailsResponse {
@@ -141,23 +158,20 @@ interface JourneyDetailsResponse {
 
 // --- Interfaces for Disruptions API (/disruptions/station) ---
 interface Situation {
-  label?: string; // Make optional as it might not always be present
-  // Add other fields if known from API response
+  label?: string;
 }
 
 interface SummaryAdditionalTravelTime {
-  label?: string; // Make optional
-  // Add other fields if known
+  label?: string;
 }
 
 interface Timespan {
-  period?: string; // Make optional
-  start?: string; // Add start time
-  end?: string; // Add end time
-  situation?: Situation; // Add nested situation object
-  cause?: { label?: string }; // Add cause object
-  advices?: string[]; // Add advices array
-  // Add other fields like start/end dates if known
+  period?: string;
+  start?: string;
+  end?: string;
+  situation?: Situation;
+  cause?: { label?: string };
+  advices?: string[];
 }
 
 export interface Disruption {
@@ -165,13 +179,71 @@ export interface Disruption {
   type: "CALAMITY" | "DISRUPTION" | "MAINTENANCE";
   isActive: boolean;
   title: string;
-  topic?: string; // Make optional as it might not always be present
-  situation?: Situation; // Add nested situation object
-  summaryAdditionalTravelTime?: SummaryAdditionalTravelTime; // Add nested travel time object
-  timespans?: Timespan[]; // Add array of timespans
-  expectedDuration?: { description?: string }; // Add expected duration
-  // Add other potential fields like 'description', 'publicationSections' if needed
+  topic?: string;
+  situation?: Situation;
+  summaryAdditionalTravelTime?: SummaryAdditionalTravelTime;
+  timespans?: Timespan[];
+  expectedDuration?: { description?: string };
 }
+
+// --- Trip Planning Interfaces (from TripResultDisplay, now centralized) ---
+export interface StopTimeInfo {
+    name: string;
+    plannedDateTime?: string;
+    actualDateTime?: string;
+    plannedTrack?: string;
+    actualTrack?: string;
+    exitSide?: string;
+    uicCode?: string;
+}
+
+export interface LegNote {
+    value: string;
+    key?: string;
+    noteType?: string;
+    isPresentationRequired?: boolean;
+}
+
+export interface Leg { // Exported
+    idx: string;
+    name?: string;
+    direction?: string;
+    origin: StopTimeInfo;
+    destination: StopTimeInfo;
+    product?: TrainProduct; // Use exported TrainProduct
+    notes?: LegNote[];
+    cancelled?: boolean;
+    changePossible?: boolean;
+    alternativeTransport?: boolean;
+    stops?: JourneyStop[]; // Use exported JourneyStop
+    trainType?: string | null;
+}
+
+export interface TripNote {
+    message: string;
+    type?: string;
+}
+
+export interface LabelListItem {
+    label: string;
+    stickerType?: string;
+}
+
+export interface Trip { // Exported
+    uid: string;
+    plannedDurationInMinutes: number;
+    actualDurationInMinutes?: number;
+    transfers: number;
+    status: string;
+    legs: Leg[];
+    messages?: TripNote[];
+    labelListItems?: LabelListItem[];
+    productFare?: {
+        priceInCents?: number;
+        supplementInCents?: number;
+    };
+}
+
 
 // Shared function to fetch journeys (departures or arrivals)
 async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals', dateTime?: string): Promise<Journey[]> {
@@ -182,14 +254,12 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
         throw new Error("NS API Key is missing. Please configure it in .env.local");
     }
 
-    // Construct the base URL
     const baseUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/${type}`;
     const params = new URLSearchParams({
         lang: 'en',
         station: stationCode,
-        maxJourneys: '50', // Fetch a reasonable number
+        maxJourneys: '50',
     });
-    // Add dateTime parameter if provided
     if (dateTime) {
         params.set('dateTime', dateTime);
     }
@@ -208,26 +278,22 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
 
         if (!response.ok) {
             let errorBody = 'Could not read error body.';
-            try {
-                errorBody = await response.text();
-            } catch { /* Ignore, no need for 'e' variable */ }
-            console.error(`[ns-api.ts] Error fetching NS ${type} for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody); // More detailed log
-            throw new Error(`Failed to fetch ${type}. Status: ${response.status}. Body: ${errorBody}`); // Include body in thrown error
+            try { errorBody = await response.text(); } catch { /* Ignore */ }
+            console.error(`[ns-api.ts] Error fetching NS ${type} for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody);
+            throw new Error(`Failed to fetch ${type}. Status: ${response.status}. Body: ${errorBody}`);
         }
 
         const data = await response.json();
 
-        // Type guard to check the payload structure based on 'type'
         if (type === 'departures') {
             const departureData = data as DeparturesResponse;
             if (!departureData.payload || !Array.isArray(departureData.payload.departures)) {
                 console.error(`Invalid API response structure for ${type}:`, data);
                 throw new Error(`Received invalid data structure from NS API for ${type}.`);
             }
-            // Ensure departures conform to Journey interface (direction is expected)
              return departureData.payload.departures.map(dep => ({
                 ...dep,
-                origin: undefined // Explicitly set origin as undefined for departures
+                origin: undefined
             }));
         } else { // type === 'arrivals'
             const arrivalData = data as ArrivalsResponse;
@@ -235,40 +301,28 @@ async function fetchJourneys(stationCode: string, type: 'departures' | 'arrivals
                 console.error(`Invalid API response structure for ${type}:`, data);
                 throw new Error(`Received invalid data structure from NS API for ${type}.`);
             }
-            // Arrivals payload has 'origin' directly. 'direction' might be missing or irrelevant.
-            // Ensure the returned objects conform to the Journey interface.
             return arrivalData.payload.arrivals.map(arr => {
-                // Create a new object conforming to Journey, explicitly setting fields
                 const journey: Journey = {
-                    // Map required fields from arrival object 'arr'
                     product: arr.product,
                     plannedDateTime: arr.plannedDateTime,
                     actualDateTime: arr.actualDateTime,
                     trainCategory: arr.trainCategory,
                     cancelled: arr.cancelled,
-                    routeStations: arr.routeStations, // Assuming these exist
-                    // Optional fields
-                    origin: arr.origin, // Use the origin field directly
-                    direction: undefined, // Explicitly set direction as undefined for arrivals
+                    routeStations: arr.routeStations,
+                    origin: arr.origin,
+                    direction: undefined,
                     plannedTrack: arr.plannedTrack,
                     actualTrack: arr.actualTrack,
                     messages: arr.messages,
                 };
-                // Add any other fields from arr if necessary, ensuring type safety
-                // e.g., if arr has other properties not explicitly listed but desired:
-                // journey = { ...arr, ...journey }; // Be careful with overwrites
-
                 return journey;
             });
         }
 
     } catch (error) {
         console.error(`An error occurred while fetching or processing NS ${type}:`, error);
-        if (error instanceof Error) {
-            throw error;
-        } else {
-            throw new Error(`An unknown error occurred during NS API request for ${type}.`);
-        }
+        if (error instanceof Error) { throw error; }
+        else { throw new Error(`An unknown error occurred during NS API request for ${type}.`); }
     }
 }
 
@@ -283,233 +337,131 @@ export async function getArrivals(stationCode: string, dateTime?: string): Promi
 }
 
 // --- Function to fetch Train Composition Details ---
-// Returns an object with length, parts, and potentially destination, or null on failure
 export async function getTrainComposition(trainNumber: string, stationCode: string): Promise<{ length: number; parts: TrainUnit[]; destination?: string } | null> {
   const apiKey = process.env.NSR_API_KEY;
-
-  if (!apiKey) {
-    console.error("Error: NSR_API_KEY environment variable is not set for getTrainComposition.");
-    return null; // Return null if API key is missing
-  }
-
-  // Use the endpoint that includes the station code
+  if (!apiKey) { console.error("Error: NSR_API_KEY environment variable is not set for getTrainComposition."); return null; }
   const apiUrl = `https://gateway.apiportal.ns.nl/virtual-train-api/v1/trein/${trainNumber}/${stationCode}`;
-
   try {
-    // console.log(`[DEBUG] Fetching Composition URL for train ${trainNumber} at station ${stationCode}: ${apiUrl}`); // Removed debug log
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Ocp-Apim-Subscription-Key': apiKey,
-        'Accept': 'application/json',
-      },
-      cache: 'no-store', // Use appropriate caching strategy
-    });
-
+    const response = await fetch(apiUrl, { method: 'GET', headers: { 'Ocp-Apim-Subscription-Key': apiKey, 'Accept': 'application/json' }, cache: 'no-store' });
     if (!response.ok) {
-      // Handle cases like 404 Not Found if composition isn't available
-      if (response.status === 404) {
-        // Don't warn for 404, it's common if composition isn't available for that train/time
-        console.warn(`Composition data not found for train ${trainNumber} at station ${stationCode} (Status 404)`); // Updated warning
-        return null;
-      }
-      const errorBody = await response.text(); // Use const
-      console.error(`Error fetching composition for train ${trainNumber} at station ${stationCode}: ${response.status} ${response.statusText}`, errorBody); // Updated error log
-      // Depending on requirements, might return null or throw
+      if (response.status === 404) { console.warn(`Composition data not found for train ${trainNumber} at station ${stationCode} (Status 404)`); return null; }
+      const errorBody = await response.text();
+      console.error(`Error fetching composition for train ${trainNumber} at station ${stationCode}: ${response.status} ${response.statusText}`, errorBody);
       return null;
     }
-
     const data: CompositionResponse = await response.json();
-
-    // console.log(`[DEBUG] Raw NS Virtual Train API Response for train ${trainNumber} at station ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
-
-    // Check for expected structure
     if (typeof data.lengte === 'number' && Array.isArray(data.materieeldelen)) {
-      // console.log(`Composition found for train ${trainNumber} at station ${stationCode}, length: ${data.lengte}, parts: ${data.materieeldelen.length}, richting: ${data.richting}`); // Updated comment
-      return {
-        length: data.lengte,
-        parts: data.materieeldelen,
-        destination: data.richting // Include destination if present
-      };
+      return { length: data.lengte, parts: data.materieeldelen, destination: data.richting };
     } else {
-      console.warn(`Could not determine composition from response for train ${trainNumber} at station ${stationCode}. Missing 'lengte' or 'materieeldelen'. Response keys:`, Object.keys(data)); // Updated warning
+      console.warn(`Could not determine composition from response for train ${trainNumber} at station ${stationCode}. Missing 'lengte' or 'materieeldelen'. Response keys:`, Object.keys(data));
       return null;
     }
-
-  } catch (error) {
-    console.error(`An error occurred while fetching composition for train ${trainNumber} at station ${stationCode}:`, error); // Updated error log
-    return null; // Return null on error
-  }
+  } catch (error) { console.error(`An error occurred while fetching composition for train ${trainNumber} at station ${stationCode}:`, error); return null; }
 }
 
 // --- Function to fetch Journey Destination ---
-// Uses the /journey endpoint to find the final destination based on train number
 export async function getJourneyDestination(trainNumber: string): Promise<string | null> {
     const apiKey = process.env.NSR_API_KEY;
-
-    if (!apiKey) {
-        console.error("Error: NSR_API_KEY environment variable is not set for getJourneyDestination.");
-        return null;
-    }
-
+    if (!apiKey) { console.error("Error: NSR_API_KEY environment variable is not set for getJourneyDestination."); return null; }
     const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/journey?train=${trainNumber}`;
-
     try {
-        // console.log(`[DEBUG] Fetching Journey Details URL: ${apiUrl}`); // Removed debug log
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Ocp-Apim-Subscription-Key': apiKey,
-                'Accept': 'application/json',
-            },
-            cache: 'no-store', // Or appropriate caching
-        });
-
+        const response = await fetch(apiUrl, { method: 'GET', headers: { 'Ocp-Apim-Subscription-Key': apiKey, 'Accept': 'application/json' }, cache: 'no-store' });
         if (!response.ok) {
-            // Handle 404 or other errors gracefully
-            if (response.status === 404) {
-                 console.warn(`Journey details not found for train ${trainNumber} (Status 404)`);
-                 return null;
-            }
-            const errorBody = await response.text(); // Use const
+            if (response.status === 404) { console.warn(`Journey details not found for train ${trainNumber} (Status 404)`); return null; }
+            const errorBody = await response.text();
             console.error(`Error fetching journey details for train ${trainNumber}: ${response.status} ${response.statusText}`, errorBody);
             return null;
         }
-
         const data: JourneyDetailsResponse = await response.json();
-
-        // Find the destination from the stops array
-        // The destination is often listed in the *last* stop of the journey
         if (data.payload && Array.isArray(data.payload.stops) && data.payload.stops.length > 0) {
-            // Check the last stop first, as it often contains the final destination
             const lastStop = data.payload.stops[data.payload.stops.length - 1];
-            if (lastStop.destination) {
-                return lastStop.destination;
-            }
-            // Fallback: Sometimes the destination might be in an earlier stop's 'destination' field
-            // This logic might need refinement based on observing more API responses
-            for (const stop of data.payload.stops) {
-                if (stop.destination) {
-                    return stop.destination;
-                }
-            }
+            if (lastStop.destination) { return lastStop.destination; }
+            for (const stop of data.payload.stops) { if (stop.destination) { return stop.destination; } }
         }
-
         console.warn(`Could not determine destination from journey details response for train ${trainNumber}.`);
-        return null; // Destination not found in the expected place
-
-    } catch (error) {
-        console.error(`An error occurred while fetching journey details for train ${trainNumber}:`, error);
-        return null; // Return null on error
-    }
+        return null;
+    } catch (error) { console.error(`An error occurred while fetching journey details for train ${trainNumber}:`, error); return null; }
 }
 
-
 // --- Function to fetch Journey Origin Departure Time ---
-// Uses the /journey endpoint to find the planned departure time from the origin station
 export async function getJourneyOriginDepartureTime(trainNumber: string): Promise<string | null> {
     const apiKey = process.env.NSR_API_KEY;
-
-    if (!apiKey) {
-        console.error("Error: NSR_API_KEY environment variable is not set for getJourneyOriginDepartureTime.");
-        return null;
-    }
-
+    if (!apiKey) { console.error("Error: NSR_API_KEY environment variable is not set for getJourneyOriginDepartureTime."); return null; }
     const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/journey?train=${trainNumber}`;
-
     try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Ocp-Apim-Subscription-Key': apiKey,
-                'Accept': 'application/json',
-            },
-            cache: 'no-store', // Or appropriate caching
-        });
-
+        const response = await fetch(apiUrl, { method: 'GET', headers: { 'Ocp-Apim-Subscription-Key': apiKey, 'Accept': 'application/json' }, cache: 'no-store' });
         if (!response.ok) {
-            if (response.status === 404) {
-                 console.warn(`Journey details not found for train ${trainNumber} (Status 404) when fetching origin time.`);
-                 return null;
-            }
+            if (response.status === 404) { console.warn(`Journey details not found for train ${trainNumber} (Status 404) when fetching origin time.`); return null; }
             const errorBody = await response.text();
             console.error(`Error fetching journey details for train ${trainNumber} (origin time): ${response.status} ${response.statusText}`, errorBody);
             return null;
         }
-
         const data: JourneyDetailsResponse = await response.json();
-
-        // The origin station is typically the *first* stop in the list
         if (data.payload && Array.isArray(data.payload.stops) && data.payload.stops.length > 0) {
             const originStop = data.payload.stops[0];
-            // Check if the departure object and its plannedTime exist
-            if (originStop.departure && originStop.departure.plannedTime) {
-                return originStop.departure.plannedTime; // Return the planned departure time ISO string
-            } else {
-                 console.warn(`Origin stop for train ${trainNumber} found, but missing departure.plannedTime.`);
-            }
-        } else {
-             console.warn(`Could not find stops array or it was empty for train ${trainNumber} when fetching origin time.`);
+            if (originStop.departures && originStop.departures.length > 0 && originStop.departures[0].plannedTime) {
+                return originStop.departures[0].plannedTime;
+            } else { console.warn(`Origin stop for train ${trainNumber} found, but missing departures[0].plannedTime.`); }
+        } else { console.warn(`Could not find stops array or it was empty for train ${trainNumber} when fetching origin time.`); }
+        return null;
+    } catch (error) { console.error(`An error occurred while fetching journey details for train ${trainNumber} (origin time):`, error); return null; }
+}
+
+// --- Function to fetch Journey Stock Details (Train Type) ---
+export async function getJourneyStockDetails(
+    trainNumber: string,
+    dateTime: string,
+    departureUicCode: string,
+    arrivalUicCode: string
+): Promise<string | null> {
+    const apiKey = process.env.NSR_API_KEY;
+    if (!apiKey) { console.error("Error: NSR_API_KEY environment variable is not set for getJourneyStockDetails."); return null; }
+    const params = new URLSearchParams({ train: trainNumber, dateTime: dateTime, departureUicCode: departureUicCode, arrivalUicCode: arrivalUicCode });
+    const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v2/journey?${params.toString()}`;
+    try {
+        const response = await fetch(apiUrl, { method: 'GET', headers: { 'Ocp-Apim-Subscription-Key': apiKey, 'Accept': 'application/json' }, cache: 'no-store' });
+        if (!response.ok) {
+            if (response.status === 404) { console.warn(`Journey stock details not found for train ${trainNumber} (${departureUicCode} -> ${arrivalUicCode}) at ${dateTime} (Status 404)`); return null; }
+            const errorBody = await response.text();
+            console.error(`Error fetching journey stock details for train ${trainNumber}: ${response.status} ${response.statusText}`, errorBody);
+            return null;
         }
-
-        return null; // Origin departure time not found
-
-    } catch (error) {
-        console.error(`An error occurred while fetching journey details for train ${trainNumber} (origin time):`, error);
-        return null; // Return null on error
-    }
+        const data: JourneyDetailsResponse = await response.json();
+        if (data.payload && Array.isArray(data.payload.stops) && data.payload.stops.length > 0) {
+            const firstStop = data.payload.stops[0];
+             if (firstStop?.actualStock?.trainType || firstStop?.plannedStock?.trainType) {
+                 const trainType = firstStop.actualStock?.trainType || firstStop.plannedStock?.trainType;
+                 if (trainType) { return trainType; }
+             }
+             const stopWithStock = data.payload.stops.find(stop => stop.actualStock?.trainType || stop.plannedStock?.trainType);
+             if (stopWithStock) {
+                 const trainType = stopWithStock.actualStock?.trainType || stopWithStock.plannedStock?.trainType;
+                 if (trainType) { return trainType; }
+             }
+        }
+        console.warn(`Could not determine trainType from journey details response for train ${trainNumber} (${departureUicCode} -> ${arrivalUicCode}) at ${dateTime}.`);
+        return null;
+    } catch (error) { console.error(`An error occurred while fetching journey stock details for train ${trainNumber}:`, error); return null; }
 }
 
 // --- Function to fetch Station Disruptions ---
 export async function getStationDisruptions(stationCode: string): Promise<Disruption[]> {
     const apiKey = process.env.NSR_API_KEY;
-
-    if (!apiKey) {
-        console.error("Error: NSR_API_KEY environment variable is not set for getStationDisruptions.");
-        // Depending on requirements, might return empty array or throw
-        return []; // Return empty array if API key is missing
-    }
-
-    // Use the V3 endpoint for disruptions
+    if (!apiKey) { console.error("Error: NSR_API_KEY environment variable is not set for getStationDisruptions."); return []; }
     const apiUrl = `https://gateway.apiportal.ns.nl/reisinformatie-api/api/v3/disruptions/station/${stationCode}`;
-
     try {
-        // console.log(`[DEBUG] Fetching Disruptions URL: ${apiUrl}`); // Removed debug log
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Ocp-Apim-Subscription-Key': apiKey,
-                'Accept': 'application/json',
-            },
-            cache: 'no-store', // Or appropriate caching
-        });
-
+        const response = await fetch(apiUrl, { method: 'GET', headers: { 'Ocp-Apim-Subscription-Key': apiKey, 'Accept': 'application/json' }, cache: 'no-store' });
         if (!response.ok) {
-            // Handle errors, e.g., 404 if no disruptions or other API issues
-            if (response.status === 404) {
-                 console.log(`No disruptions found for station ${stationCode} (Status 404)`);
-                 return []; // No disruptions is not an error
-            }
+            if (response.status === 404) { console.log(`No disruptions found for station ${stationCode} (Status 404)`); return []; }
             const errorBody = await response.text();
-            console.error(`[ns-api.ts] Error fetching NS disruptions for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody); // More detailed log
-            // Re-throw the error so Promise.all catches it properly in the API route
+            console.error(`[ns-api.ts] Error fetching NS disruptions for station ${stationCode}. Status: ${response.status} ${response.statusText}. Body:`, errorBody);
             throw new Error(`Failed to fetch disruptions. Status: ${response.status}. Body: ${errorBody}`);
         }
-const data: Disruption[] = await response.json();
-// console.log(`[DEBUG] Raw NS Disruptions API Response for ${stationCode}:`, JSON.stringify(data, null, 2)); // Removed debug log
-
-// Filter for active disruptions if needed, though the API might already do this
-// return data.filter(d => d.isActive);
-return data; // Return all disruptions fetched
-        return data; // Return all disruptions fetched
-
+        const data: Disruption[] = await response.json();
+        return data;
     } catch (error) {
-        console.error(`[ns-api.ts] An error occurred while fetching or processing NS disruptions for station ${stationCode}:`, error); // More detailed log
-        // Re-throw the error so Promise.all catches it properly in the API route
-        if (error instanceof Error) {
-            throw error;
-        } else {
-            throw new Error(`An unknown error occurred during NS API request for disruptions.`);
-        }
+        console.error(`[ns-api.ts] An error occurred while fetching or processing NS disruptions for station ${stationCode}:`, error);
+        if (error instanceof Error) { throw error; }
+        else { throw new Error(`An unknown error occurred during NS API request for disruptions.`); }
     }
 }

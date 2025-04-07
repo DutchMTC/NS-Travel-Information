@@ -52,6 +52,14 @@ interface JourneyStop {
     // Add other potential fields like status if needed
 }
 
+// Interface matching the payload returned by our API route
+interface JourneyDetailsPayload {
+  notes: unknown[];
+  productNumbers: string[];
+  stops: JourneyStop[];
+}
+
+
 
 // Removed unused FilterCounts interface
 
@@ -155,9 +163,10 @@ export default function JourneyList({
           const errorData = await response.json();
           throw new Error(errorData.error || `Failed to fetch stops (${response.status})`);
         }
-        const stops: JourneyStop[] = await response.json();
-        // console.log(`[DEBUG] Fetched stops data for train ${trainNumber}:`, stops); // Removed debug log
-        setStopsData(prev => ({ ...prev, [trainNumber]: stops }));
+        // Expect the payload object containing the stops array
+        const payload: JourneyDetailsPayload = await response.json();
+        // console.log(`[DEBUG] Fetched stops payload for train ${trainNumber}:`, payload);
+        setStopsData(prev => ({ ...prev, [trainNumber]: payload.stops || [] })); // Extract the stops array, provide fallback
       } catch (err) {
         console.error("Error fetching journey stops:", err);
         setErrorStops(err instanceof Error ? err.message : "Could not load stops.");

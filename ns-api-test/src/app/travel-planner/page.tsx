@@ -11,9 +11,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // For error display
-import { Loader2 } from 'lucide-react'; // For loading spinner
+import { Loader2, Clock, Calendar, MapPin, Train, Settings2 } from 'lucide-react'; // Import additional icons
 import TripResultDisplay from '@/components/TripResultDisplay'; // Import the display component
-import type { Trip } from '@/components/TripResultDisplay'; // Import the Trip type
+import type { Trip } from '@/lib/ns-api'; // Import the Trip type from the correct location
 
 // Define the state interface based on settings
 interface TravelPlannerSettings {
@@ -237,13 +237,13 @@ export default function TravelPlannerPage() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Travel Planner</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-200">Travel Planner</h1>
 
       {/* Main Content Area - Dynamic based on state */}
-      <div className="mb-6 p-6 border rounded-lg bg-card text-card-foreground min-h-[200px]">
+      <div className="mb-6 p-6 border rounded-lg bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 shadow-sm text-gray-800 dark:text-gray-200 min-h-[200px]">
         <h2 className="text-xl font-semibold mb-4">Your Planned Trip</h2>
         {loading && (
-          <div className="flex items-center justify-center text-muted-foreground">
+          <div className="flex items-center justify-center text-gray-600 dark:text-gray-400">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             <span>Planning your trip...</span>
           </div>
@@ -255,10 +255,10 @@ export default function TravelPlannerPage() {
           </Alert>
         )}
         {!loading && !error && !trips && (
-          <p className="text-muted-foreground">Configure your journey using the &apos;Customize Trip&apos; button and click &apos;Plan Trip&apos;.</p>
+          <p className="text-gray-600 dark:text-gray-400">Configure your journey using the &apos;Customize Trip&apos; button and click &apos;Plan Trip&apos;.</p>
         )}
          {!loading && !error && trips && trips.length === 0 && (
-          <p className="text-muted-foreground">No trips found matching your criteria.</p>
+          <p className="text-gray-600 dark:text-gray-400">No trips found matching your criteria.</p>
         )}
         {!loading && !error && trips && trips.length > 0 && (
           <TripResultDisplay trips={trips} />
@@ -268,239 +268,516 @@ export default function TravelPlannerPage() {
       {/* Settings Trigger Button */}
        <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <SheetTrigger asChild>
-          <Button variant="outline">Customize Trip</Button>
+          <Button 
+            variant="outline"
+            className="flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-900"
+          >
+            <Settings2 className="mr-2 h-4 w-4" /> 
+            Customize Trip
+          </Button>
         </SheetTrigger>
-        <SheetContent className="w-[90vw] max-w-[540px] sm:w-[540px]"> {/* Responsive width */}
+        <SheetContent className="w-[90vw] max-w-[540px] sm:w-[540px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700"> 
           <SheetHeader>
-            <SheetTitle>Travel Settings</SheetTitle>
+            <SheetTitle className="text-xl font-semibold text-gray-800 dark:text-gray-200">Travel Settings</SheetTitle>
           </SheetHeader>
-          {/* Use h-[calc(100vh-theme(spacing.24))] or similar for dynamic height based on header/footer */}
-          <ScrollArea className="h-[calc(100vh-120px)] pr-6"> {/* Added padding-right for scrollbar */}
-            <div className="grid gap-6 py-4"> {/* Increased gap */}
+          <ScrollArea className="h-[calc(100vh-120px)] pr-6 text-gray-800 dark:text-gray-200"> 
+            <div className="grid gap-6 py-4"> 
 
               {/* --- Location Settings --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3">Locations</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">
+                  <MapPin className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  Locations
+                </h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="fromStation" className="text-right">From Station</Label>
-                    <Input id="fromStation" name="fromStation" value={settings.fromStation} onChange={handleInputChange} className="col-span-3" placeholder="e.g., Utrecht Centraal or UT"/>
+                    <Label htmlFor="fromStation" className="text-right text-gray-700 dark:text-gray-300">From Station</Label>
+                    <Input 
+                      id="fromStation" 
+                      name="fromStation" 
+                      value={settings.fromStation} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="e.g., Utrecht Centraal or UT"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="originUicCode" className="text-right">Origin UIC</Label>
-                    <Input id="originUicCode" name="originUicCode" value={settings.originUicCode} onChange={handleInputChange} className="col-span-3" placeholder="UIC Code (optional)"/>
+                    <Label htmlFor="originUicCode" className="text-right text-gray-700 dark:text-gray-300">Origin UIC</Label>
+                    <Input 
+                      id="originUicCode" 
+                      name="originUicCode" 
+                      value={settings.originUicCode} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="UIC Code (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="originLat" className="text-right">Origin Lat</Label>
-                    <Input id="originLat" name="originLat" type="number" step="any" value={settings.originLat ?? ''} onChange={handleInputChange} className="col-span-3" placeholder="Latitude (optional)"/>
+                    <Label htmlFor="originLat" className="text-right text-gray-700 dark:text-gray-300">Origin Lat</Label>
+                    <Input 
+                      id="originLat" 
+                      name="originLat" 
+                      type="number" 
+                      step="any" 
+                      value={settings.originLat ?? ''} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Latitude (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="originLng" className="text-right">Origin Lng</Label>
-                    <Input id="originLng" name="originLng" type="number" step="any" value={settings.originLng ?? ''} onChange={handleInputChange} className="col-span-3" placeholder="Longitude (optional)"/>
+                    <Label htmlFor="originLng" className="text-right text-gray-700 dark:text-gray-300">Origin Lng</Label>
+                    <Input 
+                      id="originLng" 
+                      name="originLng" 
+                      type="number" 
+                      step="any" 
+                      value={settings.originLng ?? ''} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Longitude (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="originName" className="text-right">Origin Name</Label>
-                    <Input id="originName" name="originName" value={settings.originName} onChange={handleInputChange} className="col-span-3" placeholder="Custom origin name (optional)"/>
+                    <Label htmlFor="originName" className="text-right text-gray-700 dark:text-gray-300">Origin Name</Label>
+                    <Input 
+                      id="originName" 
+                      name="originName" 
+                      value={settings.originName} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Custom origin name (optional)"
+                    />
                   </div>
 
-                  <Separator className="my-2"/>
+                  <Separator className="my-2 bg-gray-200 dark:bg-gray-700"/>
 
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="toStation" className="text-right">To Station</Label>
-                    <Input id="toStation" name="toStation" value={settings.toStation} onChange={handleInputChange} className="col-span-3" placeholder="e.g., Amsterdam Centraal or ASD"/>
+                    <Label htmlFor="toStation" className="text-right text-gray-700 dark:text-gray-300">To Station</Label>
+                    <Input 
+                      id="toStation" 
+                      name="toStation" 
+                      value={settings.toStation} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="e.g., Amsterdam Centraal or ASD"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="destinationUicCode" className="text-right">Dest. UIC</Label>
-                    <Input id="destinationUicCode" name="destinationUicCode" value={settings.destinationUicCode} onChange={handleInputChange} className="col-span-3" placeholder="UIC Code (optional)"/>
+                    <Label htmlFor="destinationUicCode" className="text-right text-gray-700 dark:text-gray-300">Dest. UIC</Label>
+                    <Input 
+                      id="destinationUicCode" 
+                      name="destinationUicCode" 
+                      value={settings.destinationUicCode} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="UIC Code (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="destinationLat" className="text-right">Dest. Lat</Label>
-                    <Input id="destinationLat" name="destinationLat" type="number" step="any" value={settings.destinationLat ?? ''} onChange={handleInputChange} className="col-span-3" placeholder="Latitude (optional)"/>
+                    <Label htmlFor="destinationLat" className="text-right text-gray-700 dark:text-gray-300">Dest. Lat</Label>
+                    <Input 
+                      id="destinationLat" 
+                      name="destinationLat" 
+                      type="number" 
+                      step="any" 
+                      value={settings.destinationLat ?? ''} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Latitude (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="destinationLng" className="text-right">Dest. Lng</Label>
-                    <Input id="destinationLng" name="destinationLng" type="number" step="any" value={settings.destinationLng ?? ''} onChange={handleInputChange} className="col-span-3" placeholder="Longitude (optional)"/>
+                    <Label htmlFor="destinationLng" className="text-right text-gray-700 dark:text-gray-300">Dest. Lng</Label>
+                    <Input 
+                      id="destinationLng" 
+                      name="destinationLng" 
+                      type="number" 
+                      step="any" 
+                      value={settings.destinationLng ?? ''} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Longitude (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="destinationName" className="text-right">Dest. Name</Label>
-                    <Input id="destinationName" name="destinationName" value={settings.destinationName} onChange={handleInputChange} className="col-span-3" placeholder="Custom destination name (optional)"/>
+                    <Label htmlFor="destinationName" className="text-right text-gray-700 dark:text-gray-300">Dest. Name</Label>
+                    <Input 
+                      id="destinationName" 
+                      name="destinationName" 
+                      value={settings.destinationName} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Custom destination name (optional)"
+                    />
                   </div>
 
-                  <Separator className="my-2"/>
+                  <Separator className="my-2 bg-gray-200 dark:bg-gray-700"/>
 
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="viaStation" className="text-right">Via Station</Label>
-                    <Input id="viaStation" name="viaStation" value={settings.viaStation} onChange={handleInputChange} className="col-span-3" placeholder="Via station (optional)"/>
+                    <Label htmlFor="viaStation" className="text-right text-gray-700 dark:text-gray-300">Via Station</Label>
+                    <Input 
+                      id="viaStation" 
+                      name="viaStation" 
+                      value={settings.viaStation} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Via station (optional)"
+                    />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="viaUicCode" className="text-right">Via UIC</Label>
-                    <Input id="viaUicCode" name="viaUicCode" value={settings.viaUicCode} onChange={handleInputChange} className="col-span-3" placeholder="UIC Code (optional)"/>
+                    <Label htmlFor="viaUicCode" className="text-right text-gray-700 dark:text-gray-300">Via UIC</Label>
+                    <Input 
+                      id="viaUicCode" 
+                      name="viaUicCode" 
+                      value={settings.viaUicCode} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="UIC Code (optional)"
+                    />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="viaLat" className="text-right">Via Lat</Label>
-                    <Input id="viaLat" name="viaLat" type="number" step="any" value={settings.viaLat ?? ''} onChange={handleInputChange} className="col-span-3" placeholder="Latitude (door-to-door only)"/>
+                    <Label htmlFor="viaLat" className="text-right text-gray-700 dark:text-gray-300">Via Lat</Label>
+                    <Input 
+                      id="viaLat" 
+                      name="viaLat" 
+                      type="number" 
+                      step="any" 
+                      value={settings.viaLat ?? ''} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Latitude (door-to-door only)"
+                    />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="viaLng" className="text-right">Via Lng</Label>
-                    <Input id="viaLng" name="viaLng" type="number" step="any" value={settings.viaLng ?? ''} onChange={handleInputChange} className="col-span-3" placeholder="Longitude (door-to-door only)"/>
+                    <Label htmlFor="viaLng" className="text-right text-gray-700 dark:text-gray-300">Via Lng</Label>
+                    <Input 
+                      id="viaLng" 
+                      name="viaLng" 
+                      type="number" 
+                      step="any" 
+                      value={settings.viaLng ?? ''} 
+                      onChange={handleInputChange} 
+                      className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Longitude (door-to-door only)"
+                    />
                   </div>
                 </div>
               </div>
 
               {/* --- Time & Date Settings --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 mt-4">Time & Date</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">
+                  <Clock className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  Time & Date
+                </h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="dateTime" className="text-right">Date & Time</Label>
-                        <Input id="dateTime" name="dateTime" type="datetime-local" value={settings.dateTime} onChange={handleInputChange} className="col-span-3"/>
+                        <Label htmlFor="dateTime" className="text-right text-gray-700 dark:text-gray-300">Date & Time</Label>
+                        <Input 
+                          id="dateTime" 
+                          name="dateTime" 
+                          type="datetime-local" 
+                          value={settings.dateTime} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500"
+                        />
                     </div>
                     <div className="flex items-center space-x-2 col-start-2 col-span-3">
-                        <Switch id="searchForArrival" name="searchForArrival" checked={settings.searchForArrival} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'searchForArrival')} aria-label="Search for Arrival Time"/>
-                        <Label htmlFor="searchForArrival">Search for Arrival Time</Label>
+                        <Switch 
+                          id="searchForArrival" 
+                          name="searchForArrival" 
+                          checked={settings.searchForArrival} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'searchForArrival')} 
+                          aria-label="Search for Arrival Time"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="searchForArrival" className="text-gray-700 dark:text-gray-300">Search for Arrival Time</Label>
                     </div>
                 </div>
               </div>
 
               {/* --- Travel Options --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 mt-4">Travel Options</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">
+                  <Train className="mr-2 h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  Travel Options
+                </h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
                     <div className="flex items-center space-x-2">
-                        <Switch id="localTrainsOnly" name="localTrainsOnly" checked={settings.localTrainsOnly} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'localTrainsOnly')} aria-label="Local Trains Only"/>
-                        <Label htmlFor="localTrainsOnly">Local Trains Only (Sprinter/Stoptrein)</Label>
+                        <Switch 
+                          id="localTrainsOnly" 
+                          name="localTrainsOnly" 
+                          checked={settings.localTrainsOnly} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'localTrainsOnly')} 
+                          aria-label="Local Trains Only"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="localTrainsOnly" className="text-gray-700 dark:text-gray-300">Local Trains Only (Sprinter/Stoptrein)</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Switch id="excludeHighSpeedTrains" name="excludeHighSpeedTrains" checked={settings.excludeHighSpeedTrains} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'excludeHighSpeedTrains')} aria-label="Exclude High-Speed Trains"/>
-                        <Label htmlFor="excludeHighSpeedTrains">Exclude High-Speed Trains (incl. supplement)</Label>
+                        <Switch 
+                          id="excludeHighSpeedTrains" 
+                          name="excludeHighSpeedTrains" 
+                          checked={settings.excludeHighSpeedTrains} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'excludeHighSpeedTrains')} 
+                          aria-label="Exclude High-Speed Trains"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="excludeHighSpeedTrains" className="text-gray-700 dark:text-gray-300">Exclude High-Speed Trains (incl. supplement)</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Switch id="excludeTrainsWithReservationRequired" name="excludeTrainsWithReservationRequired" checked={settings.excludeTrainsWithReservationRequired} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'excludeTrainsWithReservationRequired')} aria-label="Exclude Trains Requiring Reservation"/>
-                        <Label htmlFor="excludeTrainsWithReservationRequired">Exclude Trains Requiring Reservation (e.g., Eurostar)</Label>
+                        <Switch 
+                          id="excludeTrainsWithReservationRequired" 
+                          name="excludeTrainsWithReservationRequired" 
+                          checked={settings.excludeTrainsWithReservationRequired} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'excludeTrainsWithReservationRequired')} 
+                          aria-label="Exclude Trains Requiring Reservation"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="excludeTrainsWithReservationRequired" className="text-gray-700 dark:text-gray-300">Exclude Trains Requiring Reservation (e.g., Eurostar)</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Switch id="passing" name="passing" checked={settings.passing} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'passing')} aria-label="Show Passing Stops"/>
-                        <Label htmlFor="passing">Show Passing Stops (non-stopping)</Label>
+                        <Switch 
+                          id="passing" 
+                          name="passing" 
+                          checked={settings.passing} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'passing')} 
+                          aria-label="Show Passing Stops"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="passing" className="text-gray-700 dark:text-gray-300">Show Passing Stops (non-stopping)</Label>
                     </div>
 
                     <div className="grid grid-cols-4 items-center gap-4 mt-2">
-                        <Label htmlFor="addChangeTime" className="text-right">Extra Transfer Time</Label>
-                        <Input id="addChangeTime" name="addChangeTime" type="number" min="0" step="1" value={settings.addChangeTime ?? ''} onChange={handleIntegerInputChange} className="col-span-3" placeholder="Minutes (optional)"/>
+                        <Label htmlFor="addChangeTime" className="text-right text-gray-700 dark:text-gray-300">Extra Transfer Time</Label>
+                        <Input 
+                          id="addChangeTime" 
+                          name="addChangeTime" 
+                          type="number" 
+                          min="0" 
+                          step="1" 
+                          value={settings.addChangeTime ?? ''} 
+                          onChange={handleIntegerInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Minutes (optional)"
+                        />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="viaWaitTime" className="text-right">Via Wait Time</Label>
-                        <Input id="viaWaitTime" name="viaWaitTime" type="number" min="0" step="1" value={settings.viaWaitTime ?? ''} onChange={handleIntegerInputChange} className="col-span-3" placeholder="Minutes at via station (optional)"/>
+                        <Label htmlFor="viaWaitTime" className="text-right text-gray-700 dark:text-gray-300">Via Wait Time</Label>
+                        <Input 
+                          id="viaWaitTime" 
+                          name="viaWaitTime" 
+                          type="number" 
+                          min="0" 
+                          step="1" 
+                          value={settings.viaWaitTime ?? ''} 
+                          onChange={handleIntegerInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Minutes at via station (optional)"
+                        />
                     </div>
                 </div>
               </div>
 
               {/* --- First/Last Mile --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 mt-4">First/Last Mile Options</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">First/Last Mile Options</h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
-                    <Label className="font-medium">From Origin:</Label>
+                    <Label className="font-medium text-gray-700 dark:text-gray-300">From Origin:</Label>
                     <div className="flex items-center space-x-4 pl-4">
                         <div className="flex items-center space-x-2">
-                            <Switch id="originWalk" name="originWalk" checked={settings.originWalk} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'originWalk')} aria-label="Origin Walk"/>
-                            <Label htmlFor="originWalk">Walk</Label>
+                            <Switch 
+                              id="originWalk" 
+                              name="originWalk" 
+                              checked={settings.originWalk} 
+                              onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'originWalk')} 
+                              aria-label="Origin Walk"
+                              className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                            />
+                            <Label htmlFor="originWalk" className="text-gray-700 dark:text-gray-300">Walk</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Switch id="originBike" name="originBike" checked={settings.originBike} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'originBike')} aria-label="Origin Bike"/>
-                            <Label htmlFor="originBike">Bike</Label>
+                            <Switch 
+                              id="originBike" 
+                              name="originBike" 
+                              checked={settings.originBike} 
+                              onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'originBike')} 
+                              aria-label="Origin Bike"
+                              className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                            />
+                            <Label htmlFor="originBike" className="text-gray-700 dark:text-gray-300">Bike</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Switch id="originCar" name="originCar" checked={settings.originCar} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'originCar')} aria-label="Origin Car"/>
-                            <Label htmlFor="originCar">Car</Label>
+                            <Switch 
+                              id="originCar" 
+                              name="originCar" 
+                              checked={settings.originCar} 
+                              onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'originCar')} 
+                              aria-label="Origin Car"
+                              className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                            />
+                            <Label htmlFor="originCar" className="text-gray-700 dark:text-gray-300">Car</Label>
                         </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="firstMileModality" className="text-right">Origin Shared Modality</Label>
-                        <Input id="firstMileModality" name="firstMileModality" value={settings.firstMileModality} onChange={handleInputChange} className="col-span-3" placeholder="e.g., OV-fiets, Check (optional)"/>
+                        <Label htmlFor="firstMileModality" className="text-right text-gray-700 dark:text-gray-300">Origin Shared Modality</Label>
+                        <Input 
+                          id="firstMileModality" 
+                          name="firstMileModality" 
+                          value={settings.firstMileModality} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="e.g., OV-fiets, Check (optional)"
+                        />
                     </div>
 
-                    <Label className="font-medium mt-2">To Destination:</Label>
+                    <Label className="font-medium text-gray-700 dark:text-gray-300">To Destination:</Label>
                     <div className="flex items-center space-x-4 pl-4">
                         <div className="flex items-center space-x-2">
-                            <Switch id="destinationWalk" name="destinationWalk" checked={settings.destinationWalk} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'destinationWalk')} aria-label="Destination Walk"/>
-                            <Label htmlFor="destinationWalk">Walk</Label>
+                            <Switch 
+                              id="destinationWalk" 
+                              name="destinationWalk" 
+                              checked={settings.destinationWalk} 
+                              onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'destinationWalk')} 
+                              aria-label="Destination Walk"
+                              className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                            />
+                            <Label htmlFor="destinationWalk" className="text-gray-700 dark:text-gray-300">Walk</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Switch id="destinationBike" name="destinationBike" checked={settings.destinationBike} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'destinationBike')} aria-label="Destination Bike"/>
-                            <Label htmlFor="destinationBike">Bike</Label>
+                            <Switch 
+                              id="destinationBike" 
+                              name="destinationBike" 
+                              checked={settings.destinationBike} 
+                              onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'destinationBike')} 
+                              aria-label="Destination Bike"
+                              className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                            />
+                            <Label htmlFor="destinationBike" className="text-gray-700 dark:text-gray-300">Bike</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                            <Switch id="destinationCar" name="destinationCar" checked={settings.destinationCar} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'destinationCar')} aria-label="Destination Car"/>
-                            <Label htmlFor="destinationCar">Car</Label>
+                            <Switch 
+                              id="destinationCar" 
+                              name="destinationCar" 
+                              checked={settings.destinationCar} 
+                              onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'destinationCar')} 
+                              aria-label="Destination Car"
+                              className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                            />
+                            <Label htmlFor="destinationCar" className="text-gray-700 dark:text-gray-300">Car</Label>
                         </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="lastMileModality" className="text-right">Dest. Shared Modality</Label>
-                        <Input id="lastMileModality" name="lastMileModality" value={settings.lastMileModality} onChange={handleInputChange} className="col-span-3" placeholder="e.g., OV-fiets, Check (optional)"/>
+                        <Label htmlFor="lastMileModality" className="text-right text-gray-700 dark:text-gray-300">Dest. Shared Modality</Label>
+                        <Input 
+                          id="lastMileModality" 
+                          name="lastMileModality" 
+                          value={settings.lastMileModality} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="e.g., OV-fiets, Check (optional)"
+                        />
                     </div>
                 </div>
               </div>
 
               {/* --- Accessibility --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 mt-4">Accessibility</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">Accessibility</h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
                     <div className="flex items-center space-x-2">
-                        <Switch id="travelAssistance" name="travelAssistance" checked={settings.travelAssistance} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'travelAssistance')} aria-label="Request Travel Assistance"/>
-                        <Label htmlFor="travelAssistance">Request Travel Assistance (PAS)</Label>
+                        <Switch 
+                          id="travelAssistance" 
+                          name="travelAssistance" 
+                          checked={settings.travelAssistance} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'travelAssistance')} 
+                          aria-label="Request Travel Assistance"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="travelAssistance" className="text-gray-700 dark:text-gray-300">Request Travel Assistance (PAS)</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Switch id="searchForAccessibleTrip" name="searchForAccessibleTrip" checked={settings.searchForAccessibleTrip} onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'searchForAccessibleTrip')} aria-label="Search for Accessible Trip"/>
-                        <Label htmlFor="searchForAccessibleTrip">Search for Accessible Trip</Label>
+                        <Switch 
+                          id="searchForAccessibleTrip" 
+                          name="searchForAccessibleTrip" 
+                          checked={settings.searchForAccessibleTrip} 
+                          onCheckedChange={(checked: boolean) => handleSwitchChange(checked, 'searchForAccessibleTrip')} 
+                          aria-label="Search for Accessible Trip"
+                          className="data-[state=checked]:bg-blue-600 dark:data-[state=checked]:bg-blue-500"
+                        />
+                        <Label htmlFor="searchForAccessibleTrip" className="text-gray-700 dark:text-gray-300">Search for Accessible Trip</Label>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="accessibilityEquipment1" className="text-right">Equipment 1</Label>
-                        <Input id="accessibilityEquipment1" name="accessibilityEquipment1" value={settings.accessibilityEquipment1} onChange={handleInputChange} className="col-span-3" placeholder="e.g., SCOOTER (optional)"/>
+                        <Label htmlFor="accessibilityEquipment1" className="text-right text-gray-700 dark:text-gray-300">Equipment 1</Label>
+                        <Input 
+                          id="accessibilityEquipment1" 
+                          name="accessibilityEquipment1" 
+                          value={settings.accessibilityEquipment1} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="e.g., SCOOTER (optional)"
+                        />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="accessibilityEquipment2" className="text-right">Equipment 2</Label>
-                        <Input id="accessibilityEquipment2" name="accessibilityEquipment2" value={settings.accessibilityEquipment2} onChange={handleInputChange} className="col-span-3" placeholder="Optional second equipment"/>
+                        <Label htmlFor="accessibilityEquipment2" className="text-right text-gray-700 dark:text-gray-300">Equipment 2</Label>
+                        <Input 
+                          id="accessibilityEquipment2" 
+                          name="accessibilityEquipment2" 
+                          value={settings.accessibilityEquipment2} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Optional second equipment"
+                        />
                     </div>
                 </div>
               </div>
 
               {/* --- Fare & Product --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 mt-4">Fare & Product</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">Fare & Product</h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="product" className="text-right">Product</Label>
+                        <Label htmlFor="product" className="text-right text-gray-700 dark:text-gray-300">Product</Label>
                         <Select name="product" value={settings.product} onValueChange={(value: string) => handleSelectChange(value, 'product')}>
-                        <SelectTrigger className="col-span-3">
+                        <SelectTrigger className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500">
                             <SelectValue placeholder="Select product..." />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700">
                             {/* Placeholder is handled by SelectValue */}
                             {productOptions.map(option => (
-                            <SelectItem key={option} value={option}>{option.replace(/_/g, ' ')}</SelectItem>
+                            <SelectItem key={option} value={option} className="text-gray-900 dark:text-gray-100">{option.replace(/_/g, ' ')}</SelectItem>
                             ))}
                         </SelectContent>
                         </Select>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="discount" className="text-right">Discount</Label>
+                        <Label htmlFor="discount" className="text-right text-gray-700 dark:text-gray-300">Discount</Label>
                         {/* TODO: Consider making this a Select if possible values are known */}
-                        <Input id="discount" name="discount" value={settings.discount} onChange={handleInputChange} className="col-span-3" placeholder="e.g., DISCOUNT_40_PERCENT (optional)"/>
+                        <Input 
+                          id="discount" 
+                          name="discount" 
+                          value={settings.discount} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="e.g., DISCOUNT_40_PERCENT (optional)"
+                        />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="travelClass" className="text-right">Travel Class</Label>
+                        <Label htmlFor="travelClass" className="text-right text-gray-700 dark:text-gray-300">Travel Class</Label>
                         <Select name="travelClass" value={settings.travelClass?.toString() ?? ''} onValueChange={(value: string) => handleSelectChange(value, 'travelClass')}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500">
                                 <SelectValue placeholder="Select class..." />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="1">1st Class</SelectItem>
-                                <SelectItem value="2">2nd Class</SelectItem>
+                            <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+                                <SelectItem value="1" className="text-gray-900 dark:text-gray-100">1st Class</SelectItem>
+                                <SelectItem value="2" className="text-gray-900 dark:text-gray-100">2nd Class</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -509,38 +786,59 @@ export default function TravelPlannerPage() {
 
               {/* --- Advanced/Other --- */}
               <div>
-                <h3 className="font-semibold text-lg mb-3 mt-4">Advanced</h3>
-                <Separator className="mb-4"/>
+                <h3 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200 flex items-center">Advanced</h3>
+                <Separator className="mb-4 bg-gray-200 dark:bg-gray-700"/>
                 <div className="grid gap-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="lang" className="text-right">Language</Label>
+                        <Label htmlFor="lang" className="text-right text-gray-700 dark:text-gray-300">Language</Label>
                         <Select name="lang" value={settings.lang} onValueChange={(value: string) => handleSelectChange(value, 'lang')}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500">
                                 <SelectValue placeholder="Select language..." />
                             </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="nl">Nederlands (nl)</SelectItem>
-                                <SelectItem value="en">English (en)</SelectItem>
+                            <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+                                <SelectItem value="nl" className="text-gray-900 dark:text-gray-100">Nederlands (nl)</SelectItem>
+                                <SelectItem value="en" className="text-gray-900 dark:text-gray-100">English (en)</SelectItem>
                                 {/* Add other languages if supported by API */}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="context" className="text-right">Context</Label>
-                        <Input id="context" name="context" value={settings.context} onChange={handleInputChange} className="col-span-3" placeholder="For pagination (next/previous)"/>
+                        <Label htmlFor="context" className="text-right text-gray-700 dark:text-gray-300">Context</Label>
+                        <Input 
+                          id="context" 
+                          name="context" 
+                          value={settings.context} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="For pagination (next/previous)"
+                        />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="travelRequestType" className="text-right">Request Type</Label>
-                        <Input id="travelRequestType" name="travelRequestType" value={settings.travelRequestType} onChange={handleInputChange} className="col-span-3" placeholder="e.g., directionsOnly (optional)"/>
+                        <Label htmlFor="travelRequestType" className="text-right text-gray-700 dark:text-gray-300">Request Type</Label>
+                        <Input 
+                          id="travelRequestType" 
+                          name="travelRequestType" 
+                          value={settings.travelRequestType} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="e.g., directionsOnly (optional)"
+                        />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="entireTripModality" className="text-right">Entire Trip Modality</Label>
-                        <Input id="entireTripModality" name="entireTripModality" value={settings.entireTripModality} onChange={handleInputChange} className="col-span-3" placeholder="Filter total trip (optional)"/>
+                        <Label htmlFor="entireTripModality" className="text-right text-gray-700 dark:text-gray-300">Entire Trip Modality</Label>
+                        <Input 
+                          id="entireTripModality" 
+                          name="entireTripModality" 
+                          value={settings.entireTripModality} 
+                          onChange={handleInputChange} 
+                          className="col-span-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500" 
+                          placeholder="Filter total trip (optional)"
+                        />
                     </div>
 
                     {/* Disabled Transport Modalities */}
                     <div>
-                        <Label className="font-medium">Exclude Transport Modalities:</Label>
+                        <Label className="font-medium text-gray-700 dark:text-gray-300">Exclude Transport Modalities:</Label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 mt-2 pl-4">
                         {transportModalities.map(modality => (
                             <div key={modality} className="flex items-center space-x-2">
@@ -548,9 +846,10 @@ export default function TravelPlannerPage() {
                                 id={`modality-${modality}`}
                                 checked={settings.disabledTransportModalities.includes(modality)}
                                 onCheckedChange={() => handleMultiSelectChange(modality)}
+                                className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 dark:data-[state=checked]:bg-blue-500 dark:data-[state=checked]:border-blue-500"
                                 aria-label={`Exclude ${modality}`}
                             />
-                            <Label htmlFor={`modality-${modality}`} className="text-sm font-normal">
+                            <Label htmlFor={`modality-${modality}`} className="text-sm font-normal text-gray-700 dark:text-gray-300">
                                 {modality.replace(/_/g, ' ')}
                             </Label>
                             </div>
@@ -562,11 +861,22 @@ export default function TravelPlannerPage() {
 
             </div> {/* End of main grid */}
           </ScrollArea>
-          <SheetFooter className="mt-4">
+          <SheetFooter className="mt-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
             <SheetClose asChild>
-              <Button type="button" variant="outline">Close</Button>
+              <Button 
+                type="button" 
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Close
+              </Button>
             </SheetClose>
-             <Button type="button" onClick={handlePlanTrip} disabled={loading}>
+             <Button 
+              type="button" 
+              onClick={handlePlanTrip} 
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
+             >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {loading ? 'Planning...' : 'Plan Trip'}
              </Button>
