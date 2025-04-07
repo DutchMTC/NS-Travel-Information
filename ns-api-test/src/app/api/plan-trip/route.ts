@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
                 if (result.status === 'fulfilled' && result.value) {
                     // Add trainType to the leg object (ensure leg object allows this property)
                     // We'll need to adjust the Leg interface later
-                    (data.trips[tripIndex].legs[legIndex] as any).trainType = result.value;
+                    data.trips[tripIndex].legs[legIndex].trainType = result.value;
                 } else if (result.status === 'rejected') {
                     console.warn(`Failed to fetch stock details for leg ${legRefs[index].leg.idx}:`, result.reason);
                     // Optionally add a null or error indicator to the leg

@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // For error display
-import { Loader2, Clock, Calendar, MapPin, Train, Settings2 } from 'lucide-react'; // Import additional icons
+import { Loader2, Clock, MapPin, Train, Settings2 } from 'lucide-react'; // Import additional icons
 import TripResultDisplay from '@/components/TripResultDisplay'; // Import the display component
 import type { Trip } from '@/lib/ns-api'; // Import the Trip type from the correct location
 

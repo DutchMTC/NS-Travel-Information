@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Clock, ArrowRight, TrainTrack, Shuffle, AlertCircle, CheckCircle } from 'lucide-react'; // Icons
 import { format } from 'date-fns'; // For time formatting
 // Correctly import JourneyStop and other necessary types from ns-api
-import type { Trip, Leg, JourneyStop, StopTimeInfo, TrainProduct, LegNote } from '@/lib/ns-api';
+import type { Trip, JourneyStop } from '@/lib/ns-api'; // Removed unused Leg, StopTimeInfo, TrainProduct, LegNote
 
 // Re-use or import the Trip/Leg interfaces defined in page.tsx or a shared types file
 // Note: Local interfaces removed as they are now imported from ns-api.ts
