@@ -65,15 +65,36 @@ function HomePageContent() {
 
   // Function to handle getting location and fetching stations
   const getLocationAndFetch = useCallback(() => {
-      if (!navigator.geolocation) {
-          setLocationError("Geolocation is not supported by your browser.");
-          setIsLoadingLocation(false); // Stop loading if not supported
-          return;
-      }
-      console.log("Attempting to get location and fetch...");
-      setIsLoadingLocation(true); // Show loading
-      setLocationError(null);
-      setNearestStations([]);
+    if (!navigator.geolocation || !navigator.permissions) {
+      setLocationError("Geolocation or Permissions API is not supported by your browser.");
+      setIsLoadingLocation(false);
+      return;
+    }
+
+    console.log("Checking geolocation permission...");
+    setIsLoadingLocation(true);
+    setLocationError(null);
+    setNearestStations([]);
+
+    navigator.permissions.query({ name: 'geolocation' }).then((permissionStatus) => {
+      console.log("Geolocation permission state:", permissionStatus.state);
+
+      if (permissionStatus.state === 'granted') {
+        console.log("Permission granted, getting position...");
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log("Position obtained, fetching stations...");
+            fetchNearestStations(position.coords.latitude, position.coords.longitude);
+          },
+          (error) => {
+            console.error("Error getting position (permission was granted):", error);
+            setIsLoadingLocation(false);
+            setLocationError("Could not retrieve location even though permission was granted.");
+          },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+        );
+      } else if (permissionStatus.state === 'prompt') {
+        console.log("Permission prompt needed, getting position...");
 
       navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -103,8 +124,24 @@ function HomePageContent() {
           },
           // Increased timeout and allow cached position for better mobile performance
           // Increased timeout, but require fresh position
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 } // 15 sec timeout, require fresh position
-      );
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 }
+       );
+     } else if (permissionStatus.state === 'denied') {
+       console.log("Permission denied.");
+       setLocationError("Location permission denied. Please grant access in browser settings to see nearby stations.");
+       setIsLoadingLocation(false);
+     }
+
+     // Optional: Listen for changes in permission state
+     permissionStatus.onchange = () => {
+       console.log("Geolocation permission state changed to:", permissionStatus.state);
+       // You could potentially re-trigger the fetch or update UI here if needed
+     };
+   }).catch((error) => {
+       console.error("Error checking geolocation permission:", error);
+       setLocationError("Could not check location permission status.");
+       setIsLoadingLocation(false);
+   });
   }, [fetchNearestStations]); // Depends on fetchNearestStations
 
 

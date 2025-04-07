@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getJourneyStockDetails } from '@/lib/ns-api'; // Import the new function
+import type { Trip, Leg } from '@/lib/ns-api'; // Import types (adjust path if needed)
 
 export async function POST(request: NextRequest) {
     const apiKey = process.env.NSR_API_KEY; // Use the correct environment variable name
@@ -63,7 +65,50 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const data = await response.json();
+        const data: { trips: Trip[] } = await response.json(); // Add type annotation
+
+        // --- Enrich legs with trainType ---
+        if (data.trips && data.trips.length > 0) {
+            const stockDetailPromises = [];
+            const legRefs: { tripIndex: number; legIndex: number; leg: Leg }[] = []; // Keep track of which promise belongs to which leg
+
+            for (let tripIndex = 0; tripIndex < data.trips.length; tripIndex++) {
+                const trip = data.trips[tripIndex];
+                for (let legIndex = 0; legIndex < trip.legs.length; legIndex++) {
+                    const leg = trip.legs[legIndex];
+                    // Only fetch for train legs with necessary info
+                    if (leg.product?.type === 'TRAIN' && leg.product.number && leg.origin.plannedDateTime && leg.origin.uicCode && leg.destination.uicCode) {
+                        legRefs.push({ tripIndex, legIndex, leg });
+                        stockDetailPromises.push(
+                            getJourneyStockDetails(
+                                leg.product.number,
+                                leg.origin.plannedDateTime, // Use planned time as reference
+                                leg.origin.uicCode,
+                                leg.destination.uicCode
+                            )
+                        );
+                    }
+                }
+            }
+
+            // Fetch all stock details concurrently and handle results/errors
+            const stockDetailResults = await Promise.allSettled(stockDetailPromises);
+
+            stockDetailResults.forEach((result, index) => {
+                const { tripIndex, legIndex } = legRefs[index];
+                if (result.status === 'fulfilled' && result.value) {
+                    // Add trainType to the leg object (ensure leg object allows this property)
+                    // We'll need to adjust the Leg interface later
+                    (data.trips[tripIndex].legs[legIndex] as any).trainType = result.value;
+                } else if (result.status === 'rejected') {
+                    console.warn(`Failed to fetch stock details for leg ${legRefs[index].leg.idx}:`, result.reason);
+                    // Optionally add a null or error indicator to the leg
+                    // (data.trips[tripIndex].legs[legIndex] as any).trainType = null;
+                }
+            });
+        }
+        // --- End Enrichment ---
+
         return NextResponse.json(data);
 
     } catch (error) {

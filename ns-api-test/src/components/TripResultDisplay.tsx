@@ -1,72 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Clock, ArrowRight, TrainTrack, Shuffle, AlertCircle, CheckCircle } from 'lucide-react'; // Icons
 import { format } from 'date-fns'; // For time formatting
+// Correctly import JourneyStop and other necessary types from ns-api
+import type { Trip, Leg, JourneyStop, StopTimeInfo, TrainProduct, LegNote } from '@/lib/ns-api';
 
 // Re-use or import the Trip/Leg interfaces defined in page.tsx or a shared types file
-// More accurate interface based on NS API structure
-export interface StopTimeInfo {
-    name: string;
-    plannedDateTime?: string; // Use optional as actual might be preferred if available
-    actualDateTime?: string;
-    plannedTrack?: string;
-    actualTrack?: string;
-    // Add other fields like uicCode, lat, lng if needed
-}
-
-export interface ProductInfo {
-    number?: string;
-    categoryCode?: string; // e.g., IC, SPR
-    shortCategoryName?: string; // e.g., IC, SPR
-    longCategoryName?: string; // e.g., Intercity, Sprinter
-    operatorCode?: string; // e.g., NS
-    type?: string; // e.g., TRAIN
-    displayName?: string; // e.g., NS Intercity
-}
-
-export interface LegNote { // Assuming structure from previous examples
-    value: string;
-    key?: string;
-    noteType?: string; // e.g., ATTRIBUTE, UNKNOWN
-    isPresentationRequired?: boolean;
-}
-
-export interface Leg {
-    idx: string; // Leg index
-    name?: string; // Train name like "IC 3071"
-    direction?: string;
-    origin: StopTimeInfo;
-    destination: StopTimeInfo;
-    product?: ProductInfo;
-    notes?: LegNote[]; // For leg-specific remarks
-    cancelled?: boolean;
-    changePossible?: boolean;
-    alternativeTransport?: boolean;
-    // Add crowdForecast, punctuality, stops array etc. if needed
-}
-
-// More accurate Trip interface
-export interface TripNote { // Assuming structure from previous examples
-    message: string;
-    type?: string; // e.g., INFO, WARNING
-}
-export interface LabelListItem { // For things like supplements
-    label: string;
-    stickerType?: string;
-}
-
-export interface Trip {
-    uid: string; // Unique identifier for the trip option
-    plannedDurationInMinutes: number;
-    actualDurationInMinutes?: number;
-    transfers: number;
-    status: string; // e.g., NORMAL, CANCELLED, DISRUPTION, ALTERED
-    legs: Leg[];
-    messages?: TripNote[]; // Renamed from notes for clarity based on API structure
-    labelListItems?: LabelListItem[]; // For supplements etc.
-    // Add crowdForecast, optimal, fare info etc. if needed
-}
+// Note: Local interfaces removed as they are now imported from ns-api.ts
 
 interface TripResultDisplayProps {
     trips: Trip[];
@@ -85,7 +26,8 @@ const formatDuration = (minutes: number): string => {
 };
 
 // Helper to format time string (assuming ISO 8601 format from API)
-const formatTime = (isoString: string): string => {
+const formatTime = (isoString: string | undefined): string => {
+    if (!isoString) return '?'; // Handle undefined input
     try {
         return format(new Date(isoString), 'HH:mm');
     } catch (e) {
@@ -94,56 +36,69 @@ const formatTime = (isoString: string): string => {
     }
 };
 
+// Helper to format price from cents
+const formatPrice = (cents: number | undefined | null): string => {
+    if (cents === undefined || cents === null) {
+        return ''; // Return empty string if no price
+    }
+    const euros = cents / 100;
+    // Use Intl.NumberFormat for locale-aware currency formatting
+    return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(euros);
+};
+
 // Helper to get status icon and color
 const getStatusInfo = (status: string): { icon: React.ReactNode; color: string } => {
     switch (status?.toUpperCase()) {
         case 'CANCELLED':
-            return { icon: <AlertCircle className="h-4 w-4 text-red-600" />, color: 'text-red-600' };
+            return { icon: <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />, color: 'text-red-600 dark:text-red-400' };
         case 'DISRUPTION':
         case 'ALTERED': // Treat altered also as a disruption indicator
-            return { icon: <AlertCircle className="h-4 w-4 text-orange-500" />, color: 'text-orange-500' };
+            return { icon: <AlertCircle className="h-4 w-4 text-orange-500 dark:text-orange-400" />, color: 'text-orange-500 dark:text-orange-400' };
         case 'NORMAL':
-            return { icon: <CheckCircle className="h-4 w-4 text-green-600" />, color: 'text-green-600' };
+            return { icon: <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />, color: 'text-green-600 dark:text-green-400' };
         default:
-            return { icon: null, color: 'text-muted-foreground' }; // Default or unknown status
+            return { icon: null, color: 'text-gray-600 dark:text-gray-400' }; // Default or unknown status
     }
 };
 
 const TripResultDisplay: React.FC<TripResultDisplayProps> = ({ trips }) => {
+    const [expandedLegIndex, setExpandedLegIndex] = useState<string | null>(null); // Use leg.idx as key
+
+    const handleLegClick = (legIdx: string) => {
+        setExpandedLegIndex(prevIndex => (prevIndex === legIdx ? null : legIdx));
+    };
+
     if (!trips || trips.length === 0) {
-        return <p className="text-muted-foreground">No trip results to display.</p>;
+        return <p className="text-gray-600 dark:text-gray-400">No trip results to display.</p>;
     }
 
     return (
         <div className="space-y-4">
-            {trips.map((trip, index) => {
+            {trips.map((trip, tripIndex) => {
                 const { icon: statusIcon, color: statusColor } = getStatusInfo(trip.status);
-                // Use plannedDateTime, fallback to actualDateTime if needed/available
                 const overallStartTime = trip.legs[0]?.origin?.plannedDateTime || trip.legs[0]?.origin?.actualDateTime;
                 const overallEndTime = trip.legs[trip.legs.length - 1]?.destination?.plannedDateTime || trip.legs[trip.legs.length - 1]?.destination?.actualDateTime;
                 const overallOriginName = trip.legs[0]?.origin?.name;
                 const overallDestinationName = trip.legs[trip.legs.length - 1]?.destination?.name;
 
                 return (
-                    <Card key={trip.uid || index} className="overflow-hidden">
-                        <CardHeader className="pb-2">
+                    <Card key={trip.uid || tripIndex} className="overflow-hidden border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-2 bg-gray-50 dark:bg-gray-800">
                             <div className="flex justify-between items-start gap-2">
                                 <div>
-                                    {/* Corrected Structure: Title and Description are siblings */}
-                                    <CardTitle className="text-lg">
-                                        {overallOriginName || '?'} <ArrowRight className="inline h-4 w-4 mx-1" /> {overallDestinationName || '?'}
+                                    <CardTitle className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                                        {overallOriginName || '?'} <ArrowRight className="inline h-4 w-4 mx-1 text-blue-600 dark:text-blue-400" /> {overallDestinationName || '?'}
                                     </CardTitle>
-                                    <CardDescription className="text-sm">
-                                        {overallStartTime ? formatTime(overallStartTime) : '?'} - {overallEndTime ? formatTime(overallEndTime) : '?'}
+                                    <CardDescription className="text-sm text-gray-600 dark:text-gray-400">
+                                        {formatTime(overallStartTime)} - {formatTime(overallEndTime)}
                                     </CardDescription>
-                                    {/* Div for duration/transfers/status is also a sibling */}
                                     <div className="flex items-center gap-3 text-sm mt-1">
-                                        <span className="flex items-center gap-1" title="Duration">
-                                            <Clock className="h-3.5 w-3.5" />
+                                        <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300" title="Duration">
+                                            <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                                             {formatDuration(trip.actualDurationInMinutes ?? trip.plannedDurationInMinutes)}
                                         </span>
-                                        <span className="flex items-center gap-1" title="Transfers">
-                                            <Shuffle className="h-3.5 w-3.5" />
+                                        <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300" title="Transfers">
+                                            <Shuffle className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                                             {trip.transfers} Transfer{trip.transfers !== 1 ? 's' : ''}
                                         </span>
                                         {statusIcon && (
@@ -153,79 +108,185 @@ const TripResultDisplay: React.FC<TripResultDisplayProps> = ({ trips }) => {
                                             </span>
                                         )}
                                     </div>
-                                    {/* Display trip-level labels (e.g., supplements) */}
+                                    {(trip.productFare?.priceInCents !== undefined || trip.productFare?.supplementInCents !== undefined) && (
+                                        <div className="flex items-center gap-3 text-sm mt-1 text-gray-700 dark:text-gray-300">
+                                            {trip.productFare.priceInCents !== undefined && (
+                                                <span>Price: {formatPrice(trip.productFare.priceInCents)}</span>
+                                            )}
+                                            {trip.productFare.supplementInCents !== undefined && trip.productFare.supplementInCents > 0 && (
+                                                <span className="text-xs">(+{formatPrice(trip.productFare.supplementInCents)} supplement)</span>
+                                            )}
+                                        </div>
+                                    )}
                                     {trip.labelListItems && trip.labelListItems.length > 0 && (
                                         <div className="mt-1 text-xs space-x-1">
                                             {trip.labelListItems.map((label, lblIdx) => (
-                                                <span key={lblIdx} className="inline-block bg-muted text-muted-foreground px-1.5 py-0.5 rounded-sm">{label.label}</span>
+                                                <span key={lblIdx} className="inline-block bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-1.5 py-0.5 rounded-sm">{label.label}</span>
                                             ))}
                                         </div>
                                     )}
                                 </div>
-                                {/* Optional: Add price or other summary info here */}
                             </div>
-                             {/* Display trip-level notes/messages */}
-                             {/* Display trip-level messages */}
                              {trip.messages && trip.messages.length > 0 && (
                                 <div className="mt-2 text-xs space-y-1">
                                     {trip.messages.map((msg, msgIdx) => (
-                                        <p key={msgIdx} className={`flex items-center gap-1 ${msg.type === 'WARNING' ? 'text-orange-600' : msg.type === 'ERROR' ? 'text-red-600' : 'text-muted-foreground'}`}>
+                                        <p key={msgIdx} className={`flex items-center gap-1 ${
+                                            msg.type === 'WARNING' ? 'text-orange-600 dark:text-orange-400' :
+                                            msg.type === 'ERROR' ? 'text-red-600 dark:text-red-400' :
+                                            'text-gray-600 dark:text-gray-400'
+                                        }`}>
                                             {msg.type === 'WARNING' || msg.type === 'ERROR' ? <AlertCircle className="h-3 w-3" /> : null}
-                                            {msg.message} {/* Use message field */}
+                                            {msg.message}
                                         </p>
                                     ))}
                                 </div>
                             )}
                         </CardHeader>
-                        <CardContent className="pt-2">
-                            <Separator className="mb-3" />
+                        <CardContent className="pt-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                            <Separator className="mb-3 bg-gray-200 dark:bg-gray-700" />
                             <div className="space-y-3">
-                                {trip.legs.map((leg, legIndex) => (
-                                    <div key={legIndex} className={`relative pl-6 ${leg.cancelled ? 'opacity-50 line-through' : ''}`}>
-                                        {/* Timeline Dot */}
-                                        <div className={`absolute left-0 top-1 h-3 w-3 rounded-full ${leg.cancelled ? 'bg-red-400' : 'bg-primary'}`}></div>
-                                        {/* Timeline Line (except for last leg) */}
-                                        {legIndex < trip.legs.length - 1 && (
-                                            <div className={`absolute left-[5px] top-[18px] h-[calc(100%-5px)] w-[2px] ${leg.cancelled ? 'bg-red-200' : 'bg-primary/30'}`}></div>
-                                        )}
+                                {trip.legs.map((leg, legIndex) => {
+                                    const isExpanded = expandedLegIndex === leg.idx;
+                                    // Use JourneyStop type for stops, filter out passing
+                                    const actualStops = leg.stops?.filter(stop => stop.status !== 'PASSING') || [];
 
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="font-medium">{formatTime(leg.origin.plannedDateTime || leg.origin.actualDateTime || '')} - {leg.origin.name}</span>
-                                            {(leg.origin.actualTrack || leg.origin.plannedTrack) && <span className="text-xs text-muted-foreground flex items-center gap-1"><TrainTrack className="h-3 w-3" /> Spoor {leg.origin.actualTrack || leg.origin.plannedTrack}</span>}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground mb-1 ml-1 flex items-center gap-2">
-                                            <ArrowRight className="h-3 w-3" />
-                                            <span>{leg.product?.shortCategoryName || leg.product?.type || 'Unknown'} {leg.product?.number || leg.name || ''}</span> { /* Display train name if product number missing */}
-                                            {leg.direction && <span className="text-xs italic ml-1">({leg.direction})</span>}
-                                            {leg.cancelled && <span className="text-red-600 font-semibold">(Cancelled)</span>}
-                                            {leg.alternativeTransport && <span className="text-orange-500 font-semibold">(Alternative Transport)</span>}
-                                        </div>
-                                         {/* Display leg-level notes/messages */}
-                                         {leg.notes && leg.notes.length > 0 && (
-                                            <div className="ml-1 mt-1 text-xs space-y-0.5">
-                                                {/* Filter notes that should be presented */}
-                                                {leg.notes?.filter(note => note.isPresentationRequired !== false).map((note, noteIdx) => (
-                                                    <p key={noteIdx} className={`flex items-center gap-1 ${note.noteType === 'WARNING' ? 'text-orange-600' : note.noteType === 'ERROR' ? 'text-red-600' : 'text-muted-foreground'}`}>
-                                                        {note.noteType === 'WARNING' || note.noteType === 'ERROR' ? <AlertCircle className="h-3 w-3" /> : null}
-                                                        {note.value}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <div className="flex justify-between items-center mt-1">
-                                            <span className="font-medium">{formatTime(leg.destination.plannedDateTime || leg.destination.actualDateTime || '')} - {leg.destination.name}</span>
-                                            {(leg.destination.actualTrack || leg.destination.plannedTrack) && <span className="text-xs text-muted-foreground flex items-center gap-1"><TrainTrack className="h-3 w-3" /> Spoor {leg.destination.actualTrack || leg.destination.plannedTrack}</span>}
-                                        </div>
-                                        {/* Add transfer info if not the last leg */}
-                                        {legIndex < trip.legs.length - 1 && leg.changePossible !== false && (
-                                            <Separator className="my-2" />
-                                            // Optional: Add transfer time indication here if available in API data
-                                        )}
-                                         {legIndex < trip.legs.length - 1 && leg.changePossible === false && (
-                                            <div className="my-2 text-sm text-orange-600 font-medium flex items-center gap-1"><AlertCircle className="h-4 w-4" /> Short transfer - Not guaranteed</div>
-                                        )}
-                                    </div>
-                                ))}
+                                    return (
+                                        <div key={leg.idx} className={`relative pl-6 ${leg.cancelled ? 'opacity-50' : ''}`}>
+                                            {/* Timeline Dot */}
+                                            <div className={`absolute left-0 top-1 h-3 w-3 rounded-full ${leg.cancelled ? 'bg-red-500 dark:bg-red-400' : 'bg-blue-600 dark:bg-blue-400'}`}></div>
+                                            {/* Timeline Line (connects dots) */}
+                                            {legIndex < trip.legs.length - 1 && (
+                                                <div className={`absolute left-[5px] top-[18px] h-[calc(100%-10px)] w-[2px] ${leg.cancelled ? 'bg-red-300 dark:bg-red-800' : 'bg-blue-200 dark:bg-blue-700'}`}></div>
+                                            )}
+
+                                            {/* Clickable Leg Header */}
+                                            <div
+                                                className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 rounded p-1 -ml-1 ${leg.cancelled ? 'line-through' : ''}`}
+                                                onClick={() => handleLegClick(leg.idx)} // Use leg.idx
+                                                role="button"
+                                                aria-expanded={isExpanded}
+                                                aria-controls={`leg-stops-${trip.uid}-${leg.idx}`}
+                                            >
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-medium text-gray-800 dark:text-gray-200">{formatTime(leg.origin.plannedDateTime || leg.origin.actualDateTime)} - {leg.origin.name}</span>
+                                                    {(leg.origin.actualTrack || leg.origin.plannedTrack) &&
+                                                        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                                            <TrainTrack className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                                            <span className="flex items-center justify-center px-1.5 py-0.5 rounded border text-xs font-semibold border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400">
+                                                                {leg.origin.actualTrack || leg.origin.plannedTrack}
+                                                            </span>
+                                                        </span>
+                                                    }
+                                                </div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-400 mb-1 ml-1 flex items-center gap-2">
+                                                    <ArrowRight className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                                    {/* Display Train Type (Material) */}
+                                                    <span>{leg.product?.shortCategoryName || leg.product?.type || 'Unknown'} {leg.product?.number || leg.name || ''} {leg.trainType && <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">({leg.trainType})</span>}</span>
+                                                    {leg.direction && <span className="text-xs italic ml-1">({leg.direction})</span>}
+                                                    {leg.cancelled && <span className="text-red-600 dark:text-red-400 font-semibold">(Cancelled)</span>}
+                                                    {leg.alternativeTransport && <span className="text-orange-500 dark:text-orange-400 font-semibold">(Alternative Transport)</span>}
+                                                </div>
+                                                {leg.notes && leg.notes.length > 0 && (
+                                                    <div className="ml-1 mt-1 text-xs space-y-0.5">
+                                                        {leg.notes?.filter(note => note.isPresentationRequired !== false).map((note, noteIdx) => (
+                                                            <p key={noteIdx} className={`flex items-center gap-1 ${
+                                                                note.noteType === 'WARNING' ? 'text-orange-600 dark:text-orange-400' :
+                                                                note.noteType === 'ERROR' ? 'text-red-600 dark:text-red-400' :
+                                                                'text-gray-600 dark:text-gray-400'
+                                                            }`}>
+                                                                {note.noteType === 'WARNING' || note.noteType === 'ERROR' ? <AlertCircle className="h-3 w-3" /> : null}
+                                                                {note.value}
+                                                            </p>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center mt-1">
+                                                    <span className="font-medium text-gray-800 dark:text-gray-200">{formatTime(leg.destination.plannedDateTime || leg.destination.actualDateTime)} - {leg.destination.name}</span>
+                                                    {(leg.destination.actualTrack || leg.destination.plannedTrack) &&
+                                                        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                                                            <TrainTrack className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                                            <span className="flex items-center justify-center px-1.5 py-0.5 rounded border text-xs font-semibold border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400">
+                                                                {leg.destination.actualTrack || leg.destination.plannedTrack}
+                                                            </span>
+                                                        </span>
+                                                    }
+                                                    {leg.destination.exitSide && (
+                                                        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1" title={`Exit Side: ${leg.destination.exitSide}`}>
+                                                            Exit: {leg.destination.exitSide.charAt(0).toUpperCase() + leg.destination.exitSide.slice(1).toLowerCase()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div> {/* End of clickable leg header */}
+
+                                            {/* Conditionally render intermediate stops */}
+                                            {isExpanded && actualStops.length > 0 && (
+                                                <div id={`leg-stops-${trip.uid}-${leg.idx}`} className="mt-2 ml-4 pl-4 border-l-2 border-gray-300 dark:border-gray-600 space-y-1.5">
+                                                    <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Intermediate Stops:</h4>
+                                                    {actualStops.map((stop: JourneyStop, stopIndex: number) => { // Explicitly type stop
+                                                        // Correctly access nested properties from JourneyStop
+                                                        const arrival = stop.arrivals?.[0]; // Get first arrival event
+                                                        const departure = stop.departures?.[0]; // Get first departure event
+                                                        const arrivalTime = arrival?.actualTime || arrival?.plannedTime;
+                                                        const arrivalTrack = arrival?.actualTrack || arrival?.plannedTrack;
+                                                        const departureTime = departure?.actualTime || departure?.plannedTime;
+                                                        const departureTrack = departure?.actualTrack || departure?.plannedTrack;
+                                                        // Check cancellation status within arrival/departure objects
+                                                        const isCancelled = arrival?.cancelled || departure?.cancelled || false;
+
+                                                        // Determine if it's the first or last *displayed* stop in this leg
+                                                        const isFirstDisplayedStop = stopIndex === 0;
+                                                        const isLastDisplayedStop = stopIndex === actualStops.length - 1;
+
+                                                        return (
+                                                            // Use stop.stop.uicCode for key if available, fallback to index
+                                                            <div key={stop.stop?.uicCode || stopIndex} className={`text-xs ${isCancelled ? 'opacity-50 line-through' : ''}`}>
+                                                                {/* Access name via stop.stop.name */}
+                                                                <p className="font-medium text-gray-800 dark:text-gray-200">{stop.stop?.name || 'Unknown Stop'}</p>
+                                                                <div className="flex justify-between items-center text-gray-600 dark:text-gray-400">
+                                                                    {/* Arrival Info (if not first displayed stop) */}
+                                                                    {!isFirstDisplayedStop && arrivalTime && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            Arr: {formatTime(arrivalTime)}
+                                                                            {arrivalTrack && (
+                                                                                <span className="flex items-center gap-0.5 ml-1" title={`Arrival Track: ${arrivalTrack}`}>
+                                                                                    (<TrainTrack className="h-2.5 w-2.5" />{arrivalTrack})
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                    {/* Departure Info (if not last displayed stop) */}
+                                                                    {!isLastDisplayedStop && departureTime && (
+                                                                        <span className="flex items-center gap-1">
+                                                                            Dep: {formatTime(departureTime)}
+                                                                            {departureTrack && (
+                                                                                <span className="flex items-center gap-0.5 ml-1" title={`Departure Track: ${departureTrack}`}>
+                                                                                    (<TrainTrack className="h-2.5 w-2.5" />{departureTrack})
+                                                                                </span>
+                                                                            )}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {isCancelled && <p className="text-red-600 dark:text-red-400 font-semibold">(Stop Cancelled)</p>}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {/* Separator and Transfer Info */}
+                                            {legIndex < trip.legs.length - 1 && (
+                                                <>
+                                                    <Separator className="my-2 bg-gray-200 dark:bg-gray-700" />
+                                                    {leg.changePossible === false && (
+                                                        <div className="mb-2 text-sm text-orange-600 dark:text-orange-400 font-medium flex items-center gap-1">
+                                                            <AlertCircle className="h-4 w-4" /> Short transfer - Not guaranteed
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div> // Closing div for the entire leg item
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>
