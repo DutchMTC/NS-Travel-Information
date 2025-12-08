@@ -69,11 +69,8 @@ interface JourneyListProps {
   journeys: JourneyWithDetails[];
   listType: 'departures' | 'arrivals';
   currentStationUic: string;
-  // showFilterPanel prop removed, handled by parent
-  // Filter state and handlers are now controlled by parent
   selectedTrainTypes: string[];
   selectedDestinations: string[];
-  // onTrainTypeChange and onDestinationChange are handled by the parent
 }
 
 // Animation variants
@@ -134,12 +131,8 @@ export default function JourneyList({
     journeys,
     listType,
     currentStationUic,
-    // showFilterPanel prop removed
-    // Receive filter state and callbacks from props
     selectedTrainTypes,
     selectedDestinations
-    // onTrainTypeChange, // Handled by parent
-    // onDestinationChange // Handled by parent
 }: JourneyListProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [stopsData, setStopsData] = useState<Record<string, JourneyStop[]>>({}); // Cache for stops
